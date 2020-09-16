@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <atomic>
 #include <iostream>
 #include <vector>
 
@@ -91,13 +92,13 @@ struct FrameState {
     MapSwitcherPtr mapSwitcher;
 };
 
+std::atomic_uint g_processedFrames(0);
+
 bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, FrameState &state) {
     auto frame_index = os.next_pts;
     auto second = (double) frame_index / (double) encoder.GetFPS();
 
-    if ((frame_index % encoder.GetFPS()) == 0) {
-        std::cout << "Frame " << frame_index << " " << second << "s" << std::endl;
-    }
+    ++g_processedFrames;
 
     ClearFrame(encoder, os);
 
@@ -219,6 +220,19 @@ int main(int argc, char **argv) {
     OIIO::ROI roi(0, 32, 0, 32, 0, 1, /*chans:*/ 0, dot.nchannels());
     dot = OIIO::ImageBufAlgo::resize(dot, "", 0, roi, 1);
 
+    volatile bool terminated = false;
+    auto printStats = [&] {
+        while (!terminated) {
+            auto totalSeconds = g_processedFrames / 60;
+            auto seconds = totalSeconds % 60;
+            auto minutes = totalSeconds / 60;
+            std::cout << g_processedFrames << " frames - " << std::setfill('0') << std::setw(2) << minutes << ":"
+                      << std::setfill('0') << std::setw(2) << seconds << "\n";
+            sleep(1);
+        }
+        std::cout << "Stats thread terminated\n";
+    };
+    std::thread thr(printStats);
     auto tp = default_thread_pool();
 
     task_set tasks(tp);
@@ -236,6 +250,8 @@ int main(int argc, char **argv) {
             }
         }
     }
-
+    tasks.wait(true);
+    terminated = true;
+    thr.join();
     return 0;
 }
