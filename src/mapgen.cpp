@@ -179,27 +179,48 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
     lbl2 << PrintTime(m_geo->Date());
     auto lbl2Str = lbl2.str();
 
-    // Top label
-    if (!ImageBufAlgo::render_box(ib, 0, 0, width, 32, 1.0f, true)) {
-        std::cerr << "Could not render box" << std::endl;
+    if (m_lbl2 != lbl2.str()) {
+
+        // Top label
+        if (!ImageBufAlgo::render_box(m_buf2, 0, 0, width, 32, 1.0f, true, {}, 1)) {
+            std::cerr << "Could not render box" << std::endl;
+            return false;
+        }
+
+        if (!ImageBufAlgo::render_text(m_buf2, width / 2, 32 - 5, lbl2Str.c_str(), 32, FONT_PATH,
+                                       {0.0f, 0.0f, 0.0f, 1.0f}, ImageBufAlgo::TextAlignX::Center,
+                                       ImageBufAlgo::TextAlignY::Baseline, 0, {}, 1)) {
+            fprintf(stderr, "Could not render text\n");
+            return false;
+        }
+
+        m_lbl2 = lbl2.str();
+    }
+
+    if (!ImageBufAlgo::paste(ib, 0, 0, 0, 0, m_buf2, {}, 1)) {
+        std::cerr << "Could not paste" << std::endl;
         return false;
     }
 
-    if (!ImageBufAlgo::render_text(ib, width / 2, 32 - 5, lbl2Str.c_str(), 32, FONT_PATH, {0.0f, 0.0f, 0.0f, 1.0f},
-                                   ImageBufAlgo::TextAlignX::Center)) {
-        fprintf(stderr, "Could not render text\n");
-        return false;
+    if (m_lbl1 != lbl1.str()) {
+        // Bottom label
+        if (!ImageBufAlgo::render_box(m_buf1, 0, 0, width, 32, 1.0f, true, {}, 1)) {
+            std::cerr << "Could not render box" << std::endl;
+            return false;
+        }
+
+        if (!ImageBufAlgo::render_text(m_buf1, width / 2, 32 - 5, lbl1Str.c_str(), 32, FONT_PATH,
+                                       {0.0f, 0.0f, 0.0f, 1.0f}, ImageBufAlgo::TextAlignX::Center,
+                                       ImageBufAlgo::TextAlignY::Baseline, 0, {}, 1)) {
+            fprintf(stderr, "Could not render text\n");
+            return false;
+        }
+
+        m_lbl1 = lbl1.str();
     }
 
-    // Bottom label
-    if (!ImageBufAlgo::render_box(ib, 0, height - 32 - 5, width, height, 1.0f, true)) {
-        std::cerr << "Could not render box" << std::endl;
-        return false;
-    }
-
-    if (!ImageBufAlgo::render_text(ib, width / 2, height - 5, lbl1Str.c_str(), 32, FONT_PATH, {0.0f, 0.0f, 0.0f, 1.0f},
-                                   ImageBufAlgo::TextAlignX::Center)) {
-        fprintf(stderr, "Could not render text\n");
+    if (!ImageBufAlgo::paste(ib, 0, height - 32, 0, 0, m_buf1, {}, 1)) {
+        std::cerr << "Could not paste" << std::endl;
         return false;
     }
 
