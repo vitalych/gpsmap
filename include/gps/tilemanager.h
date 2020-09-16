@@ -23,6 +23,7 @@
 #define TILEMANAGER_H
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -87,6 +88,7 @@ using Tiles = std::unordered_map<TileDesc, TilePtr>;
 
 class TileManager {
 private:
+    std::mutex m_lock;
     std::string m_tilesRootPath;
     std::string m_mapUrl;
     Tiles m_tiles;

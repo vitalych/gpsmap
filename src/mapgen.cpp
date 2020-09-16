@@ -57,7 +57,7 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
             int cy = 0;
             for (auto j = -1; j <= 1; j++) {
                 auto img = grid[j + 1][i + 1]->GetImage();
-                if (!ImageBufAlgo::paste(m_grid, cx, cy, 0, 0, img)) {
+                if (!ImageBufAlgo::paste(m_grid, cx, cy, 0, 0, img, {}, 1)) {
                     std::cerr << "Could not copy image" << std::endl;
                     return false;
                 }
@@ -72,7 +72,7 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
     // Render centered image
     px += tw;
     py += th;
-    if (!ImageBufAlgo::paste(ib, -(px - tw / 2), -(py - th / 2), 0, 0, m_grid)) {
+    if (!ImageBufAlgo::paste(ib, -(px - tw / 2), -(py - th / 2), 0, 0, m_grid, {}, 1)) {
         std::cerr << "Could not paste" << std::endl;
         return false;
     }
@@ -84,16 +84,16 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
     py = ib.spec().height / 2;
     OIIO::ROI roi(px - w, px + w, py - h, py + h, 0, 1, /*chans:*/ 0, ib.nchannels());
 
-    auto subimg = ImageBufAlgo::copy(ib, TypeUnknown, roi);
+    auto subimg = ImageBufAlgo::copy(ib, TypeUnknown, roi, 1);
     subimg.set_origin(0, 0);
 
-    auto comp = ImageBufAlgo::over(m_dot, subimg);
+    auto comp = ImageBufAlgo::over(m_dot, subimg, {}, 1);
     if (comp.has_error()) {
         return false;
     }
 
     // Paste the dot over the final grid
-    if (!ImageBufAlgo::paste(ib, px - w, py - w, 0, 0, comp)) {
+    if (!ImageBufAlgo::paste(ib, px - w, py - w, 0, 0, comp, {}, 1)) {
         std::cerr << "Could not paste" << std::endl;
         return false;
     }

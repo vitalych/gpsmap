@@ -133,7 +133,55 @@ static std::string StripSpecialCharacters(const std::string &str) {
     return ss.str();
 }
 
+using ZoomedMaps = std::vector<std::pair<MapImageGeneratorPtr, int>>;
+
+static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, gpx::GPXPtr gpx, gpx::Segment seg,
+                             int i, boost::filesystem::path OutputDirectory, ZoomedMaps &zoomedMaps) {
+    // Round robin zoom
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 5), 5));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 7), 5));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 11), 5));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 16), 60));
+
+    gpx::TrackItem start, end;
+    gpx->GetItem(seg.first, start);
+    gpx->GetItem(seg.second, end);
+    std::cout << "Segment start=" << seg.first << " end=" << seg.second << std::endl;
+    std::cout << "  " << start << "\n";
+    std::cout << "  " << end << "\n";
+
+    std::stringstream videoFileName;
+    boost::filesystem::path videoPath(OutputDirectory);
+
+    videoFileName << std::setw(3) << std::setfill('0') << i << " - " << StripSpecialCharacters(start.OriginalTimestamp)
+                  << ".mp4";
+    ++i;
+    videoPath.append(videoFileName.str());
+
+    std::cout << "Encoding to " << videoPath << std::endl;
+
+    FrameState fs;
+    fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
+    fs.labelGen = LabelGenerator::Create(fs.geoTracker);
+    fs.mapSwitcher = MapSwitcher::Create(fs.geoTracker);
+    for (auto m : zoomedMaps) {
+        fs.mapSwitcher->AddMapGenerator(m.first, m.second);
+    }
+
+    auto cb = std::bind(&GenerateFrame, std::placeholders::_1, std::placeholders::_2, fs);
+    auto encoder = VideoEncoder::Create(videoPath.string(), 512, 512, 25, cb);
+    if (!encoder) {
+        return;
+    }
+
+    encoder->EncodeLoop();
+    encoder->Finalize();
+}
+
 int main(int argc, char **argv) {
+
+    attribute("threads", 32);
+
     Arguments args;
 
     if (!ParseCommandLine(argc, argv, args)) {
@@ -149,58 +197,25 @@ int main(int argc, char **argv) {
 
     auto dot = OIIO::ImageBuf("dot.png");
     OIIO::ROI roi(0, 32, 0, 32, 0, 1, /*chans:*/ 0, dot.nchannels());
-    dot = OIIO::ImageBufAlgo::resize(dot, "", 0, roi);
+    dot = OIIO::ImageBufAlgo::resize(dot, "", 0, roi, 1);
 
-    std::vector<std::pair<MapImageGeneratorPtr, int>> zoomedMaps;
+    ZoomedMaps zoomedMaps;
 
-    // Round robin zoom
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 5), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 7), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 11), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 16), 60));
+    auto tp = default_thread_pool();
 
-    for (auto f : args.InputGPXPaths) {
-        auto gpx = gpx::GPX::Create();
-        std::cout << "Loading " << f << std::endl;
-        gpx->LoadFromFile(f);
-        gpx->CreateSegments();
+    task_set tasks(tp);
+    {
+        for (auto f : args.InputGPXPaths) {
+            auto gpx = gpx::GPX::Create();
+            std::cout << "Loading " << f << std::endl;
+            gpx->LoadFromFile(f);
+            gpx->CreateSegments();
 
-        int i = 0;
-
-        for (const auto &seg : gpx->GetSegments()) {
-            gpx::TrackItem start, end;
-            gpx->GetItem(seg.first, start);
-            gpx->GetItem(seg.second, end);
-            std::cout << "Segment start=" << seg.first << " end=" << seg.second << std::endl;
-            std::cout << "  " << start << "\n";
-            std::cout << "  " << end << "\n";
-
-            std::stringstream videoFileName;
-            boost::filesystem::path videoPath(args.OutputDirectory);
-
-            videoFileName << std::setw(3) << std::setfill('0') << i << " - "
-                          << StripSpecialCharacters(start.OriginalTimestamp) << ".mp4";
-            ++i;
-            videoPath.append(videoFileName.str());
-
-            std::cout << "Encoding to " << videoPath << std::endl;
-
-            FrameState fs;
-            fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
-            fs.labelGen = LabelGenerator::Create(fs.geoTracker);
-            fs.mapSwitcher = MapSwitcher::Create(fs.geoTracker);
-            for (auto m : zoomedMaps) {
-                fs.mapSwitcher->AddMapGenerator(m.first, m.second);
+            int i = 0;
+            for (const auto &seg : gpx->GetSegments()) {
+                tasks.push(tp->push(EncodeOneSegment, tiles, dot, gpx, seg, i, args.OutputDirectory, zoomedMaps));
+                ++i;
             }
-
-            auto cb = std::bind(&GenerateFrame, std::placeholders::_1, std::placeholders::_2, fs);
-            auto encoder = VideoEncoder::Create(videoPath.string(), 512, 512, 25, cb);
-            if (!encoder) {
-                return -1;
-            }
-
-            encoder->EncodeLoop();
-            encoder->Finalize();
         }
     }
 

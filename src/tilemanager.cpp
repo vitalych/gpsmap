@@ -25,6 +25,7 @@
 #include <curl/curl.h>
 #include <iostream>
 #include <math.h>
+#include <mutex>
 
 #include <gps/tilemanager.h>
 
@@ -158,21 +159,24 @@ TilePtr TileManager::DownloadTile(const TileDesc &tile) const {
 }
 
 TilePtr TileManager::GetTile(int x, int y, int zoom) {
-    auto d = TileDesc(x, y, zoom);
-    auto it = m_tiles.find(d);
+    std::unique_lock<std::mutex> lock(m_lock);
+    {
+        auto d = TileDesc(x, y, zoom);
+        auto it = m_tiles.find(d);
 
-    TilePtr ret;
-    if (it != m_tiles.end()) {
-        ret = it->second;
-    } else {
-        ret = DownloadTile(d);
-        if (!ret) {
-            return nullptr;
+        TilePtr ret;
+        if (it != m_tiles.end()) {
+            ret = it->second;
+        } else {
+            ret = DownloadTile(d);
+            if (!ret) {
+                return nullptr;
+            }
+
+            m_tiles[d] = ret;
         }
-
-        m_tiles[d] = ret;
+        return ret;
     }
-    return ret;
 }
 
 TilePtr TileManager::GetTile(double lat, double lon, int &xt, int &yt, int zoom) {
