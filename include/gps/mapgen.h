@@ -24,6 +24,7 @@
 
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imageio.h>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -136,6 +137,7 @@ public:
 
 class MapSwitcher;
 using MapSwitcherPtr = std::shared_ptr<MapSwitcher>;
+using MapSwitcherCb = std::function<bool(int, int &)>;
 
 class MapSwitcher {
 private:
@@ -143,20 +145,21 @@ private:
 
     GeoTrackerPtr m_geo;
     MapImageGenerators m_maps;
+    MapSwitcherCb m_cb;
 
     int m_currentMapIndex;
     int m_remainingDuration;
     int m_prevSecond;
 
-    MapSwitcher(GeoTrackerPtr geo) : m_geo(geo) {
+    MapSwitcher(GeoTrackerPtr geo, MapSwitcherCb cb) : m_geo(geo), m_cb(cb) {
         m_currentMapIndex = 0;
         m_remainingDuration = 0;
         m_prevSecond = 0;
     };
 
 public:
-    static MapSwitcherPtr Create(GeoTrackerPtr geo) {
-        return MapSwitcherPtr(new MapSwitcher(geo));
+    static MapSwitcherPtr Create(GeoTrackerPtr geo, MapSwitcherCb cb) {
+        return MapSwitcherPtr(new MapSwitcher(geo, cb));
     }
 
     void AddMapGenerator(MapImageGeneratorPtr map, int duration) {

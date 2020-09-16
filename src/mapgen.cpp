@@ -234,6 +234,17 @@ bool MapSwitcher::Generate(int second, OIIO::ImageBuf &ib) {
             m_currentMapIndex = (m_currentMapIndex + 1) % m_maps.size();
             m_remainingDuration = m_maps[m_currentMapIndex].second;
         }
+
+        // Let clients override the displayed map if needed
+        if (m_maps.size() > 1) {
+            int overrideIndex = 0;
+            if (m_cb(second, overrideIndex)) {
+                if (overrideIndex < (int) m_maps.size()) {
+                    m_currentMapIndex = overrideIndex;
+                }
+            }
+        }
+
         m_prevSecond = second;
     }
 

@@ -136,12 +136,9 @@ static std::string StripSpecialCharacters(const std::string &str) {
 using ZoomedMaps = std::vector<std::pair<MapImageGeneratorPtr, int>>;
 
 static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, gpx::GPXPtr gpx, gpx::Segment seg,
-                             int i, boost::filesystem::path OutputDirectory, ZoomedMaps &zoomedMaps) {
-    // Round robin zoom
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 5), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 7), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 11), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 16), 60));
+                             int i, boost::filesystem::path OutputDirectory) {
+
+    ZoomedMaps zoomedMaps;
 
     gpx::TrackItem start, end;
     gpx->GetItem(seg.first, start);
@@ -149,6 +146,29 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, 
     std::cout << "Segment start=" << seg.first << " end=" << seg.second << std::endl;
     std::cout << "  " << start << "\n";
     std::cout << "  " << end << "\n";
+
+    auto duration = end.Timestamp - start.Timestamp;
+    auto largestZoomLevelIndex = 0;
+
+    auto overrideCb = [&](int second, int &index) {
+        // show largest zoom level at the beginning or end of a segment, to simplify synchronization
+        if ((second > duration - 40) || (second < 20)) {
+            index = largestZoomLevelIndex;
+            return true;
+        }
+        return false;
+    };
+
+    // Round robin zoom
+    if (duration > 120) {
+        // Don't cycle through short segments.
+        // It's easier to do video synchronization with a precise map at all times.
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 5), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 7), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 11), 5));
+    }
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 16), 60));
+    largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;
     boost::filesystem::path videoPath(OutputDirectory);
@@ -163,7 +183,7 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, 
     FrameState fs;
     fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
     fs.labelGen = LabelGenerator::Create(fs.geoTracker);
-    fs.mapSwitcher = MapSwitcher::Create(fs.geoTracker);
+    fs.mapSwitcher = MapSwitcher::Create(fs.geoTracker, overrideCb);
     for (auto m : zoomedMaps) {
         fs.mapSwitcher->AddMapGenerator(m.first, m.second);
     }
@@ -199,8 +219,6 @@ int main(int argc, char **argv) {
     OIIO::ROI roi(0, 32, 0, 32, 0, 1, /*chans:*/ 0, dot.nchannels());
     dot = OIIO::ImageBufAlgo::resize(dot, "", 0, roi, 1);
 
-    ZoomedMaps zoomedMaps;
-
     auto tp = default_thread_pool();
 
     task_set tasks(tp);
@@ -213,7 +231,7 @@ int main(int argc, char **argv) {
 
             int i = 0;
             for (const auto &seg : gpx->GetSegments()) {
-                tasks.push(tp->push(EncodeOneSegment, tiles, dot, gpx, seg, i, args.OutputDirectory, zoomedMaps));
+                tasks.push(tp->push(EncodeOneSegment, tiles, dot, gpx, seg, i, args.OutputDirectory));
                 ++i;
             }
         }
