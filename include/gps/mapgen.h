@@ -48,6 +48,8 @@ private:
           m_zoom(zoom) {
     }
 
+    bool DrawDot(OIIO::ImageBuf &ib);
+
 public:
     static MapImageGeneratorPtr Create(TileManagerPtr &tiles, const OIIO::ImageBuf &dot, int zoom) {
         return MapImageGeneratorPtr(new MapImageGenerator(tiles, dot, zoom));

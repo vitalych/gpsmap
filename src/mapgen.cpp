@@ -77,11 +77,15 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
         return false;
     }
 
+    return DrawDot(ib);
+}
+
+bool MapImageGenerator::DrawDot(ImageBuf &ib) {
     // Draw the dot
     auto w = m_dot.spec().width / 2;
     auto h = m_dot.spec().height / 2;
-    px = ib.spec().width / 2;
-    py = ib.spec().height / 2;
+    auto px = ib.spec().width / 2;
+    auto py = ib.spec().height / 2;
     OIIO::ROI roi(px - w, px + w, py - h, py + h, 0, 1, /*chans:*/ 0, ib.nchannels());
 
     auto subimg = ImageBufAlgo::copy(ib, TypeUnknown, roi, 1);
