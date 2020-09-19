@@ -93,9 +93,16 @@ private:
     std::string m_mapUrl;
     Tiles m_tiles;
 
+    int m_tileWidth;
+    int m_tileHeight;
+
     TileManager(const std::string &tilesRootPath, const std::string &mapUrl) {
         m_tilesRootPath = tilesRootPath;
         m_mapUrl = mapUrl;
+
+        // TODO: auto-detect sizes
+        m_tileWidth = 512;
+        m_tileHeight = 512;
     }
 
     TilePtr DownloadTile(const TileDesc &tile) const;
@@ -103,6 +110,7 @@ private:
 public:
     TilePtr GetTile(int x, int y, int zoom);
     TilePtr GetTile(double lat, double lon, int &xt, int &yt, int zoom);
+    void GetTileCoords(double lat, double lon, int zoom, int &xt, int &yt, int &px, int &py) const;
     static TileManagerPtr Create(const std::string &tilesRootPath, const std::string &mapDescPath);
 };
 

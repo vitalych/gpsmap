@@ -179,23 +179,26 @@ TilePtr TileManager::GetTile(int x, int y, int zoom) {
     }
 }
 
-TilePtr TileManager::GetTile(double lat, double lon, int &xt, int &yt, int zoom) {
-    auto x = long2tilex<double>(lon, zoom);
-    auto y = lat2tiley<double>(lat, zoom);
+void TileManager::GetTileCoords(double lat, double lon, int zoom, int &xt, int &yt, int &px, int &py) const {
+    auto xd = long2tilex<double>(lon, zoom);
+    auto yd = lat2tiley<double>(lat, zoom);
+
+    // Get the pixel coordinates inside the tile
+    double dummy;
+    px = modf(xd, &dummy) * m_tileWidth;
+    py = modf(yd, &dummy) * m_tileHeight;
+    xt = xd;
+    yt = yd;
+}
+
+TilePtr TileManager::GetTile(double lat, double lon, int &px, int &py, int zoom) {
+    int x = 0, y = 0;
+    GetTileCoords(lat, lon, zoom, x, y, px, py);
 
     TilePtr ret = GetTile(x, y, zoom);
     if (!ret) {
         return nullptr;
     }
 
-    // Get the pixel coordinates inside the tile
-    double dummy;
-    auto w = ret->GetImage().spec().width;
-    auto h = ret->GetImage().spec().height;
-    auto px = modf(x, &dummy) * w;
-    auto py = modf(y, &dummy) * h;
-
-    xt = px;
-    yt = py;
     return ret;
 }
