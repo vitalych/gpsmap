@@ -121,17 +121,18 @@ using LabelGeneratorPtr = std::shared_ptr<LabelGenerator>;
 class LabelGenerator {
 private:
     GeoTrackerPtr m_geo;
+    std::string m_fontPath;
 
     // Cached labels
     std::string m_lbl1, m_lbl2;
     OIIO::ImageBuf m_buf1, m_buf2;
 
-    LabelGenerator(GeoTrackerPtr geo)
-        : m_geo(geo), m_buf1(OIIO::ImageSpec(512, 32, 4)), m_buf2(OIIO::ImageSpec(512, 32, 4)){};
+    LabelGenerator(GeoTrackerPtr geo, const std::string &fontPath)
+        : m_geo(geo), m_fontPath(fontPath), m_buf1(OIIO::ImageSpec(512, 32, 4)), m_buf2(OIIO::ImageSpec(512, 32, 4)){};
 
 public:
-    static LabelGeneratorPtr Create(GeoTrackerPtr geo) {
-        return LabelGeneratorPtr(new LabelGenerator(geo));
+    static LabelGeneratorPtr Create(GeoTrackerPtr geo, const std::string &fontPath) {
+        return LabelGeneratorPtr(new LabelGenerator(geo, fontPath));
     }
 
     bool Generate(OIIO::ImageBuf &ib);

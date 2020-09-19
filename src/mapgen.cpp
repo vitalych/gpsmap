@@ -22,8 +22,6 @@
 
 OIIO_NAMESPACE_USING
 
-#define FONT_PATH "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-
 bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
     int px, py;
     auto tile = m_tiles->GetTile(lat, lon, px, py, m_zoom);
@@ -191,7 +189,7 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
             return false;
         }
 
-        if (!ImageBufAlgo::render_text(m_buf2, width / 2, 32 - 5, lbl2Str.c_str(), 32, FONT_PATH,
+        if (!ImageBufAlgo::render_text(m_buf2, width / 2, 32 - 5, lbl2Str.c_str(), 32, m_fontPath,
                                        {0.0f, 0.0f, 0.0f, 1.0f}, ImageBufAlgo::TextAlignX::Center,
                                        ImageBufAlgo::TextAlignY::Baseline, 0, {}, 1)) {
             fprintf(stderr, "Could not render text\n");
@@ -213,7 +211,7 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
             return false;
         }
 
-        if (!ImageBufAlgo::render_text(m_buf1, width / 2, 32 - 5, lbl1Str.c_str(), 32, FONT_PATH,
+        if (!ImageBufAlgo::render_text(m_buf1, width / 2, 32 - 5, lbl1Str.c_str(), 32, m_fontPath,
                                        {0.0f, 0.0f, 0.0f, 1.0f}, ImageBufAlgo::TextAlignX::Center,
                                        ImageBufAlgo::TextAlignY::Baseline, 0, {}, 1)) {
             fprintf(stderr, "Could not render text\n");

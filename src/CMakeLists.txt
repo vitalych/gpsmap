@@ -26,6 +26,7 @@ add_executable(
     decoder.cpp
     tilemanager.cpp
     mapgen.cpp
+    resources.cpp
 )
 target_link_libraries(gps avcodec avutil avformat swscale swresample OpenImageIO boost_system boost_filesystem curl m pthread)
 

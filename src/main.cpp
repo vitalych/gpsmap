@@ -31,13 +31,14 @@
 #include <gps/encoder.h>
 #include <gps/gpx.h>
 #include <gps/mapgen.h>
+#include <gps/resources.h>
 #include <gps/tilemanager.h>
 
 OIIO_NAMESPACE_USING
 
 struct Arguments {
+    boost::filesystem::path ResourceDir;
     std::string TilesRootPath;
-    std::string TilesUrl;
     std::string InputVideoPath;
     boost::filesystem::path OutputDirectory;
     std::vector<std::string> InputGPXPaths;
@@ -53,17 +54,22 @@ static bool ParseCommandLine(int argc, char **argv, Arguments &args) {
                 std::cerr << args.OutputDirectory << " does not exist" << std::endl;
                 return false;
             }
+        } else if (!strcmp(argv[i], "-rsrcdir")) {
+            args.ResourceDir = boost::filesystem::path(argv[i + 1]);
+            if (!boost::filesystem::exists(args.ResourceDir)) {
+                std::cerr << args.ResourceDir << " does not exist" << std::endl;
+                return false;
+            }
         } else if (!strcmp(argv[i], "-tiles")) {
             args.TilesRootPath = argv[i + 1];
-        } else if (!strcmp(argv[i], "-tiles-url")) {
-            args.TilesUrl = argv[i + 1];
         } else {
             std::cerr << "Invalid argument " << i << ": " << argv[i] << "\n";
             return false;
         }
     }
 
-    return args.InputGPXPaths.size() > 0 && args.OutputDirectory.size() > 0 && args.InputGPXPaths.size() > 0;
+    return args.InputGPXPaths.size() > 0 && args.OutputDirectory.size() > 0 && args.InputGPXPaths.size() > 0 &&
+           args.ResourceDir.size() > 0;
 }
 
 static inline uint32_t rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -136,7 +142,7 @@ static std::string StripSpecialCharacters(const std::string &str) {
 
 using ZoomedMaps = std::vector<std::pair<MapImageGeneratorPtr, int>>;
 
-static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, gpx::GPXPtr gpx, gpx::Segment seg,
+static void EncodeOneSegment(int id, TileManagerPtr tiles, ResourcesPtr resources, gpx::GPXPtr gpx, gpx::Segment seg,
                              int i, boost::filesystem::path OutputDirectory) {
 
     ZoomedMaps zoomedMaps;
@@ -164,11 +170,11 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, 
     if (duration > 120) {
         // Don't cycle through short segments.
         // It's easier to do video synchronization with a precise map at all times.
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 5), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 7), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 11), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 5), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 7), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 11), 5));
     }
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, dot, 16), 60));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 16), 60));
     largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;
@@ -183,7 +189,7 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, OIIO::ImageBuf &dot, 
 
     FrameState fs;
     fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
-    fs.labelGen = LabelGenerator::Create(fs.geoTracker);
+    fs.labelGen = LabelGenerator::Create(fs.geoTracker, resources->GetFontPath().string());
     fs.mapSwitcher = MapSwitcher::Create(fs.geoTracker, overrideCb);
     for (auto m : zoomedMaps) {
         fs.mapSwitcher->AddMapGenerator(m.first, m.second);
@@ -206,19 +212,20 @@ int main(int argc, char **argv) {
     Arguments args;
 
     if (!ParseCommandLine(argc, argv, args)) {
-        printf("usage: %s -gpx file1.gpx [-gpx file2.gpx...] -vout output.mp4\n", argv[0]);
+        printf("usage: %s -gpx file1.gpx [-gpx file2.gpx...] -rsrcdir /path/to/resources -vout output.mp4\n", argv[0]);
         return -1;
     }
 
-    auto tiles = TileManager::Create(args.TilesRootPath, args.TilesUrl);
+    auto resources = Resources::Create(args.ResourceDir);
+    if (!resources) {
+        return -1;
+    }
+
+    auto tiles = TileManager::Create(args.TilesRootPath, resources->GetMapPath().string());
     if (!tiles) {
         std::cerr << "Could not create tile manager" << std::endl;
         exit(-1);
     }
-
-    auto dot = OIIO::ImageBuf("dot.png");
-    OIIO::ROI roi(0, 32, 0, 32, 0, 1, /*chans:*/ 0, dot.nchannels());
-    dot = OIIO::ImageBufAlgo::resize(dot, "", 0, roi, 1);
 
     volatile bool terminated = false;
     auto printStats = [&] {
@@ -245,7 +252,7 @@ int main(int argc, char **argv) {
 
             int i = 0;
             for (const auto &seg : gpx->GetSegments()) {
-                tasks.push(tp->push(EncodeOneSegment, tiles, dot, gpx, seg, i, args.OutputDirectory));
+                tasks.push(tp->push(EncodeOneSegment, tiles, resources, gpx, seg, i, args.OutputDirectory));
                 ++i;
             }
         }
