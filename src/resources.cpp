@@ -55,6 +55,17 @@ bool Resources::Load() {
     }
     m_dot = Resize(m_dot, 32, 32);
 
+    if (!LoadFromFile(m_dir, "pin_start.png", m_startPin)) {
+        return false;
+    }
+    m_startPin = Resize(m_startPin, 45, 64);
+
+    if (!LoadFromFile(m_dir, "pin_finish.png", m_finishPin)) {
+        return false;
+    }
+    m_finishPin = Resize(m_finishPin, 45, 64);
+    m_finishPin = OIIO::ImageBufAlgo::flip(m_finishPin);
+
     m_map = boost::filesystem::path(m_dir).append("OpenStreetMap-HiDPI.xml");
     if (!boost::filesystem::exists(m_map)) {
         std::cerr << "Could not find " << m_map.string() << std::endl;

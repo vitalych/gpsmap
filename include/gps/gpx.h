@@ -62,12 +62,25 @@ private:
 
 public:
     void LoadFromFile(const std::string &path);
+
     void CreateSegments();
+
     const Segments &GetSegments() const {
         return m_segments;
     }
+
     bool GetClosestItem(time_t timestamp, size_t &nextItem, TrackItem &item);
+
     bool GetItem(size_t index, TrackItem &item);
+
+    const TrackItem &First() const {
+        return m_trackItems.front();
+    }
+
+    const TrackItem &Last() const {
+        return m_trackItems.back();
+    }
+
     static GPXPtr Create();
 };
 

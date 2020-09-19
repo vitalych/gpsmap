@@ -91,12 +91,19 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
     // Render centered image
     px += tw;
     py += th;
+
     if (!ImageBufAlgo::paste(ib, -(px - tw / 2), -(py - th / 2), 0, 0, m_grid, {}, 1)) {
         std::cerr << "Could not paste" << std::endl;
         return false;
     }
 
-    return DrawDot(ib);
+    // Save the coordinates of the grid that correspond to (0, 0) of the viewport
+    m_viewportx = px - tw / 2;
+    m_viewporty = py - th / 2;
+
+    DrawMarkers(ib);
+
+    return true;
 }
 
 bool MapImageGenerator::DrawDot(ImageBuf &ib) {
@@ -109,6 +116,62 @@ bool MapImageGenerator::DrawDot(ImageBuf &ib) {
     auto py = ib.spec().height / 2;
 
     return Overlay(ib, dot, px - w, py - h);
+}
+
+void MapImageGenerator::DrawMarkers(ImageBuf &ib) {
+    DrawDot(ib);
+
+    int vx, vy;
+    auto first = m_gpx->First();
+    if (ToViewPortCoordinates(ib, first.Latitude, first.Longitude, vx, vy)) {
+        // Draw the marker, so that the pin falls down on (vx, vy)
+        auto marker = m_res->Start();
+        auto mw = marker.spec().width;
+        auto mh = marker.spec().height;
+        Overlay(ib, marker, vx - mw / 2, vy - mh);
+    }
+
+    auto last = m_gpx->Last();
+    if (ToViewPortCoordinates(ib, last.Latitude, last.Longitude, vx, vy)) {
+        // Draw the marker, so that the pin falls down on (vx, vy)
+        // XXX: assume the finish marker is upside down
+        auto marker = m_res->Finish();
+        auto mw = marker.spec().width;
+        Overlay(ib, marker, vx - mw / 2, vy);
+    }
+}
+
+bool MapImageGenerator::ToViewPortCoordinates(ImageBuf &ib, double lat, double lon, int &x, int &y) {
+    // 1. Get tile coordinates
+    int xt, yt, px, py;
+    m_tiles->GetTileCoords(lat, lon, m_zoom, xt, yt, px, py);
+
+    // 2. Translate to pixel coords in the internal grid
+    auto topx = m_centerx - 1;
+    auto topy = m_centery - 1;
+    if (xt < topx || xt > topx + 2) {
+        return false;
+    }
+    if (yt < topy || yt > topy + 2) {
+        return false;
+    }
+    xt -= topx;
+    yt -= topy;
+    px += xt * 512;
+    py += yt * 512;
+
+    // 3. Translate grid coords to viewport coords
+    auto vx = px - m_viewportx;
+    auto vy = py - m_viewporty;
+    auto vw = ib.spec().width;
+    auto vh = ib.spec().height;
+    if (vx < 0 || vx >= vw || vy < 0 || vy > vh) {
+        return false;
+    }
+
+    x = vx;
+    y = vy;
+    return true;
 }
 
 bool GeoTracker::UpdateFrame(int frameIndex, int fps) {

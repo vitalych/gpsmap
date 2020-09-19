@@ -37,23 +37,28 @@ using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
 
 class MapImageGenerator {
 private:
+    gpx::GPXPtr m_gpx;
     ResourcesPtr m_res;
     OIIO::ImageBuf m_grid;
     TileManagerPtr m_tiles;
     int m_centerx, m_centery;
+    int m_viewportx, m_viewporty;
     int m_zoom;
 
     // TODO: clean hard-coded constants
-    MapImageGenerator(TileManagerPtr &tiles, ResourcesPtr &resources, int zoom)
-        : m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)), m_tiles(tiles), m_centerx(0), m_centery(0),
-          m_zoom(zoom) {
+    MapImageGenerator(gpx::GPXPtr &gpx, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom)
+        : m_gpx(gpx), m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)), m_tiles(tiles), m_centerx(0),
+          m_centery(0), m_zoom(zoom) {
     }
 
+    bool ToViewPortCoordinates(OIIO::ImageBuf &ib, double lat, double lon, int &x, int &y);
+
     bool DrawDot(OIIO::ImageBuf &ib);
+    void DrawMarkers(OIIO::ImageBuf &ib);
 
 public:
-    static MapImageGeneratorPtr Create(TileManagerPtr &tiles, ResourcesPtr &resources, int zoom) {
-        return MapImageGeneratorPtr(new MapImageGenerator(tiles, resources, zoom));
+    static MapImageGeneratorPtr Create(gpx::GPXPtr &gpx, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom) {
+        return MapImageGeneratorPtr(new MapImageGenerator(gpx, tiles, resources, zoom));
     }
 
     bool Generate(OIIO::ImageBuf &ib, double lat, double lon);

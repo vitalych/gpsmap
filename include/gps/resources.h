@@ -34,7 +34,7 @@ using ResourcesPtr = std::shared_ptr<Resources>;
 class Resources {
 private:
     const boost::filesystem::path m_dir;
-    OIIO::ImageBuf m_dot;
+    OIIO::ImageBuf m_dot, m_startPin, m_finishPin;
     boost::filesystem::path m_map;
     boost::filesystem::path m_font;
 
@@ -54,6 +54,14 @@ public:
 
     const OIIO::ImageBuf &Dot() const {
         return m_dot;
+    }
+
+    const OIIO::ImageBuf &Start() const {
+        return m_startPin;
+    }
+
+    const OIIO::ImageBuf &Finish() const {
+        return m_finishPin;
     }
 
     const boost::filesystem::path &GetMapPath() const {
