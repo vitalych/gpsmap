@@ -22,6 +22,27 @@
 
 OIIO_NAMESPACE_USING
 
+bool Overlay(ImageBuf &dest, const ImageBuf &source, int x, int y) {
+    auto w = source.spec().width;
+    auto h = source.spec().height;
+    OIIO::ROI roi(x, x + w, y, y + h, 0, 1, /*chans:*/ 0, dest.nchannels());
+
+    auto subimg = ImageBufAlgo::copy(dest, TypeUnknown, roi, 1);
+    subimg.set_origin(0, 0);
+
+    auto comp = ImageBufAlgo::over(source, subimg, {}, 1);
+    if (comp.has_error()) {
+        return false;
+    }
+
+    if (!ImageBufAlgo::paste(dest, x, y, 0, 0, comp, {}, 1)) {
+        std::cerr << "Could not paste" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
     int px, py;
     auto tile = m_tiles->GetTile(lat, lon, px, py, m_zoom);
@@ -84,23 +105,8 @@ bool MapImageGenerator::DrawDot(ImageBuf &ib) {
     auto h = m_dot.spec().height / 2;
     auto px = ib.spec().width / 2;
     auto py = ib.spec().height / 2;
-    OIIO::ROI roi(px - w, px + w, py - h, py + h, 0, 1, /*chans:*/ 0, ib.nchannels());
 
-    auto subimg = ImageBufAlgo::copy(ib, TypeUnknown, roi, 1);
-    subimg.set_origin(0, 0);
-
-    auto comp = ImageBufAlgo::over(m_dot, subimg, {}, 1);
-    if (comp.has_error()) {
-        return false;
-    }
-
-    // Paste the dot over the final grid
-    if (!ImageBufAlgo::paste(ib, px - w, py - w, 0, 0, comp, {}, 1)) {
-        std::cerr << "Could not paste" << std::endl;
-        return false;
-    }
-
-    return true;
+    return Overlay(ib, m_dot, px - w, py - h);
 }
 
 bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
