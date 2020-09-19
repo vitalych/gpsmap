@@ -20,6 +20,7 @@
 // SOFTWARE.
 
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avassert.h>
 #include <libavutil/channel_layout.h>
@@ -358,7 +359,7 @@ bool VideoEncoder::Initialize() {
 
     m_fmt = m_oc->oformat;
 
-    m_video = AddStream(m_fmt->video_codec);
+    m_video = AddStream(AV_CODEC_ID_HEVC);
     if (!m_video) {
         return false;
     }
