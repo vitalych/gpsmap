@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "gpx.h"
+#include "resources.h"
 #include "tilemanager.h"
 
 class MapImageGenerator;
@@ -36,23 +37,23 @@ using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
 
 class MapImageGenerator {
 private:
-    const OIIO::ImageBuf &m_dot;
+    ResourcesPtr m_res;
     OIIO::ImageBuf m_grid;
     TileManagerPtr m_tiles;
     int m_centerx, m_centery;
     int m_zoom;
 
     // TODO: clean hard-coded constants
-    MapImageGenerator(TileManagerPtr &tiles, const OIIO::ImageBuf &dot, int zoom)
-        : m_dot(dot), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)), m_tiles(tiles), m_centerx(0), m_centery(0),
+    MapImageGenerator(TileManagerPtr &tiles, ResourcesPtr &resources, int zoom)
+        : m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)), m_tiles(tiles), m_centerx(0), m_centery(0),
           m_zoom(zoom) {
     }
 
     bool DrawDot(OIIO::ImageBuf &ib);
 
 public:
-    static MapImageGeneratorPtr Create(TileManagerPtr &tiles, const OIIO::ImageBuf &dot, int zoom) {
-        return MapImageGeneratorPtr(new MapImageGenerator(tiles, dot, zoom));
+    static MapImageGeneratorPtr Create(TileManagerPtr &tiles, ResourcesPtr &resources, int zoom) {
+        return MapImageGeneratorPtr(new MapImageGenerator(tiles, resources, zoom));
     }
 
     bool Generate(OIIO::ImageBuf &ib, double lat, double lon);

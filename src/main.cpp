@@ -170,11 +170,11 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, ResourcesPtr resource
     if (duration > 120) {
         // Don't cycle through short segments.
         // It's easier to do video synchronization with a precise map at all times.
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 5), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 7), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 11), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 5), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 7), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 11), 5));
     }
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources->Dot(), 16), 60));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 16), 60));
     largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;

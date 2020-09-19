@@ -101,12 +101,14 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
 
 bool MapImageGenerator::DrawDot(ImageBuf &ib) {
     // Draw the dot
-    auto w = m_dot.spec().width / 2;
-    auto h = m_dot.spec().height / 2;
+    auto dot = m_res->Dot();
+
+    auto w = dot.spec().width / 2;
+    auto h = dot.spec().height / 2;
     auto px = ib.spec().width / 2;
     auto py = ib.spec().height / 2;
 
-    return Overlay(ib, m_dot, px - w, py - h);
+    return Overlay(ib, dot, px - w, py - h);
 }
 
 bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
