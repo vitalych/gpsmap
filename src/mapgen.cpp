@@ -101,6 +101,7 @@ bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
     m_viewportx = px - tw / 2;
     m_viewporty = py - th / 2;
 
+    DrawTrack(ib);
     DrawMarkers(ib);
 
     return true;
@@ -138,6 +139,26 @@ void MapImageGenerator::DrawMarkers(ImageBuf &ib) {
         auto marker = m_res->Finish();
         auto mw = marker.spec().width;
         Overlay(ib, marker, vx - mw / 2, vy);
+    }
+}
+
+// TODO: optimize this, do not scan the entire list of items
+void MapImageGenerator::DrawTrack(ImageBuf &ib) {
+    bool hasPrev = false;
+    int prevx, prevy;
+
+    for (const auto &item : m_gpx->GetItems()) {
+        int x, y;
+        if (!ToViewPortCoordinates(ib, item.Latitude, item.Longitude, x, y)) {
+            continue;
+        }
+        if (hasPrev) {
+            ImageBufAlgo::render_line(ib, prevx, prevy, x, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
+            ImageBufAlgo::render_line(ib, prevx, prevy, x + 1, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
+        }
+        prevx = x;
+        prevy = y;
+        hasPrev = true;
     }
 }
 

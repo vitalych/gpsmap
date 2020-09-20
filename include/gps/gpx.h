@@ -73,6 +73,10 @@ public:
 
     bool GetItem(size_t index, TrackItem &item);
 
+    const std::vector<TrackItem> &GetItems() const {
+        return m_trackItems;
+    }
+
     const TrackItem &First() const {
         return m_trackItems.front();
     }

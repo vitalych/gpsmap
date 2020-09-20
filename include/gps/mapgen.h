@@ -55,6 +55,7 @@ private:
 
     bool DrawDot(OIIO::ImageBuf &ib);
     void DrawMarkers(OIIO::ImageBuf &ib);
+    void DrawTrack(OIIO::ImageBuf &ib);
 
 public:
     static MapImageGeneratorPtr Create(gpx::GPXPtr &gpx, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom) {
