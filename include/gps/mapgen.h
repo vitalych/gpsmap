@@ -164,7 +164,7 @@ private:
     MapSwitcher(GeoTrackerPtr geo, MapSwitcherCb cb) : m_geo(geo), m_cb(cb) {
         m_currentMapIndex = 0;
         m_remainingDuration = 0;
-        m_prevSecond = 0;
+        m_prevSecond = -1;
     };
 
 public:

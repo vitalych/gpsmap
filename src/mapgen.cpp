@@ -322,7 +322,10 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
 
 bool MapSwitcher::Generate(int second, OIIO::ImageBuf &ib) {
     if (second != m_prevSecond) {
-        --m_remainingDuration;
+        if (m_prevSecond >= 0) {
+            --m_remainingDuration;
+        }
+
         if (!m_remainingDuration) {
             m_currentMapIndex = (m_currentMapIndex + 1) % m_maps.size();
             m_remainingDuration = m_maps[m_currentMapIndex].second;
