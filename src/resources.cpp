@@ -53,7 +53,7 @@ bool Resources::Load() {
     if (!LoadFromFile(m_dir, "dot32.png", m_dot)) {
         return false;
     }
-    m_dot = Resize(m_dot, 32, 32);
+    m_dot = Resize(m_dot, 16, 16);
 
     if (!LoadFromFile(m_dir, "pin_start.png", m_startPin)) {
         return false;
@@ -78,5 +78,26 @@ bool Resources::Load() {
         return false;
     }
 
+    // Initialize arrows in various angles
+    if (!LoadFromFile(m_dir, "arrow.png", m_arrow)) {
+        return false;
+    }
+    m_arrow = Resize(m_arrow, 96, 96);
+
     return true;
+}
+
+const OIIO::ImageBuf &Resources::GetArrow(int angle) {
+    std::unique_lock<std::mutex> lock(m_lock);
+    {
+        angle = angle % 360;
+        auto it = m_arrows.find(angle);
+        if (it != m_arrows.end()) {
+            return it->second;
+        }
+
+        auto rotated = ImageBufAlgo::rotate(m_arrow, angle * M_PI / 180.0, string_view(), 0.0f, false, {}, 1);
+        m_arrows[angle] = rotated;
+        return m_arrows[angle];
+    }
 }

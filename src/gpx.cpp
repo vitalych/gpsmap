@@ -54,10 +54,6 @@ std::string time_to_str(time_t t) {
     return buff;
 }
 
-static double to_rad(double deg) {
-    return deg * M_PI / 180.0;
-}
-
 // Returns the distance in meters between the given coordinates (in degrees)
 static double distance(double lat1, double lon1, double lat2, double lon2) {
     // Radius of Earth in meters, R = 6371 * 1000
@@ -75,6 +71,22 @@ static double distance(double lat1, double lon1, double lat2, double lon2) {
     long double ans = pow(sin(dlat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dlon / 2), 2);
 
     return R * 2 * asin(sqrt(ans));
+}
+
+static double bearing(double lat1, double lon1, double lat2, double lon2) {
+    lat1 = to_rad(lat1);
+    lon1 = to_rad(lon1);
+    lat2 = to_rad(lat2);
+    lon2 = to_rad(lon2);
+
+    auto x = cos(lat2) * sin(lon2 - lon1);
+    auto y = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1);
+    auto bearing = atan2(x, y);
+    return to_deg(bearing);
+}
+
+static double bearing(const TrackItem &i1, const TrackItem &i2) {
+    return bearing(i1.Latitude, i1.Longitude, i2.Latitude, i2.Longitude);
 }
 
 static double GetGrade(const std::vector<TrackItem> &items, int i) {
@@ -136,6 +148,7 @@ void GPX::LoadFromFile(const std::string &path) {
             item.Grade = 0.0;
             item.DistanceDelta = 0.0;
             item.TotalDistance = 0.0;
+            item.Bearing = 0.0;
 
             m_trackItems.push_back(item);
         }
@@ -152,6 +165,14 @@ void GPX::LoadFromFile(const std::string &path) {
 
     for (size_t i = 0; i < m_trackItems.size() - 1; ++i) {
         m_trackItems[i].Grade = GetGrade(m_trackItems, i);
+        auto b = bearing(m_trackItems[i], m_trackItems[i + 1]);
+        if (b == 0) {
+            if (i > 1) {
+                m_trackItems[i].Bearing = m_trackItems[i - 1].Bearing;
+            }
+        } else {
+            m_trackItems[i].Bearing = b;
+        }
     }
 }
 

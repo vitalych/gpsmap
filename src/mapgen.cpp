@@ -119,27 +119,42 @@ bool MapImageGenerator::DrawDot(ImageBuf &ib) {
     return Overlay(ib, dot, px - w, py - h);
 }
 
+bool MapImageGenerator::DrawArrow(ImageBuf &ib, double bearing) {
+    auto angle = bearing;
+    auto arrow = m_res->GetArrow(angle);
+
+    auto w = arrow.spec().width / 2;
+    auto h = arrow.spec().height / 2;
+    auto px = ib.spec().width / 2;
+    auto py = ib.spec().height / 2;
+
+    return Overlay(ib, arrow, px - w, py - h);
+}
+
 void MapImageGenerator::DrawMarkers(ImageBuf &ib) {
-    DrawDot(ib);
+    if (m_zoom >= 11) {
+        auto bearing = m_tracker->Bearing();
+        DrawArrow(ib, bearing);
+    } else {
+        DrawDot(ib);
+    }
 
     int vx, vy;
     auto first = m_gpx->First();
-    if (ToViewPortCoordinates(ib, first.Latitude, first.Longitude, vx, vy)) {
-        // Draw the marker, so that the pin falls down on (vx, vy)
-        auto marker = m_res->Start();
-        auto mw = marker.spec().width;
-        auto mh = marker.spec().height;
-        Overlay(ib, marker, vx - mw / 2, vy - mh);
-    }
+    ToViewPortCoordinates(ib, first.Latitude, first.Longitude, vx, vy);
+    // Draw the marker, so that the pin falls down on (vx, vy)
+    auto marker = m_res->Start();
+    auto mw = marker.spec().width;
+    auto mh = marker.spec().height;
+    Overlay(ib, marker, vx - mw / 2, vy - mh);
 
     auto last = m_gpx->Last();
-    if (ToViewPortCoordinates(ib, last.Latitude, last.Longitude, vx, vy)) {
-        // Draw the marker, so that the pin falls down on (vx, vy)
-        // XXX: assume the finish marker is upside down
-        auto marker = m_res->Finish();
-        auto mw = marker.spec().width;
-        Overlay(ib, marker, vx - mw / 2, vy);
-    }
+    ToViewPortCoordinates(ib, last.Latitude, last.Longitude, vx, vy);
+    // Draw the marker, so that the pin falls down on (vx, vy)
+    // XXX: assume the finish marker is upside down
+    marker = m_res->Finish();
+    mw = marker.spec().width;
+    Overlay(ib, marker, vx - mw / 2, vy);
 }
 
 // TODO: optimize this, do not scan the entire list of items
@@ -149,9 +164,7 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
 
     for (const auto &item : m_gpx->GetItems()) {
         int x, y;
-        if (!ToViewPortCoordinates(ib, item.Latitude, item.Longitude, x, y)) {
-            continue;
-        }
+        ToViewPortCoordinates(ib, item.Latitude, item.Longitude, x, y);
         if (hasPrev) {
             ImageBufAlgo::render_line(ib, prevx, prevy, x, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
             ImageBufAlgo::render_line(ib, prevx, prevy, x + 1, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
@@ -162,7 +175,9 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
     }
 }
 
-bool MapImageGenerator::ToViewPortCoordinates(ImageBuf &ib, double lat, double lon, int &x, int &y) {
+// This function may return negative coordinates.
+// The drawing functions will do the clipping.
+void MapImageGenerator::ToViewPortCoordinates(ImageBuf &ib, double lat, double lon, int &x, int &y) const {
     // 1. Get tile coordinates
     int xt, yt, px, py;
     m_tiles->GetTileCoords(lat, lon, m_zoom, xt, yt, px, py);
@@ -170,12 +185,7 @@ bool MapImageGenerator::ToViewPortCoordinates(ImageBuf &ib, double lat, double l
     // 2. Translate to pixel coords in the internal grid
     auto topx = m_centerx - 1;
     auto topy = m_centery - 1;
-    if (xt < topx || xt > topx + 2) {
-        return false;
-    }
-    if (yt < topy || yt > topy + 2) {
-        return false;
-    }
+
     xt -= topx;
     yt -= topy;
     px += xt * 512;
@@ -184,15 +194,24 @@ bool MapImageGenerator::ToViewPortCoordinates(ImageBuf &ib, double lat, double l
     // 3. Translate grid coords to viewport coords
     auto vx = px - m_viewportx;
     auto vy = py - m_viewporty;
-    auto vw = ib.spec().width;
-    auto vh = ib.spec().height;
-    if (vx < 0 || vx >= vw || vy < 0 || vy > vh) {
-        return false;
-    }
 
     x = vx;
     y = vy;
-    return true;
+}
+
+double angle_distance(double a1, double a2) {
+    double result;
+    auto phi = fmod(abs(a2 - a1), 360);
+    auto sign = 1;
+    if (!(((a1 - a2) >= 0 && (a1 - a2) <= 180) || ((a1 - a2) <= -180 && (a1 - a2) >= -360))) {
+        sign = -1;
+    }
+    if (phi > 180) {
+        result = 360 - phi;
+    } else {
+        result = phi;
+    }
+    return result * sign;
 }
 
 bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
@@ -222,6 +241,7 @@ bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
     auto lat = item.Latitude;
     auto lon = item.Longitude;
     auto distInc = item.TotalDistance;
+    auto bearingInc = item.Bearing;
 
     if (prev_item == m_nextItemIdx) {
         gpx::TrackItem next_item;
@@ -235,6 +255,10 @@ bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
             auto distIncrement = distDiff / timeDiff * (date - item.Timestamp);
             distInc += distIncrement;
 
+            auto bearingDiff = angle_distance(next_item.Bearing, item.Bearing);
+            auto bearingIncrement = bearingDiff / timeDiff * (date - item.Timestamp);
+            bearingInc += bearingIncrement;
+
             lon += (next_item.Longitude - item.Longitude) / timeDiff * (date - item.Timestamp);
             lat += (next_item.Latitude - item.Latitude) / timeDiff * (date - item.Timestamp);
         }
@@ -247,6 +271,7 @@ bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
     m_grade = item.Grade;
     m_elevation = item.Elevation;
     m_date = date;
+    m_bearing = bearingInc;
 
     return true;
 }

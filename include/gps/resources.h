@@ -26,6 +26,7 @@
 
 #include <boost/filesystem.hpp>
 #include <memory>
+#include <mutex>
 #include <string>
 
 class Resources;
@@ -34,9 +35,12 @@ using ResourcesPtr = std::shared_ptr<Resources>;
 class Resources {
 private:
     const boost::filesystem::path m_dir;
-    OIIO::ImageBuf m_dot, m_startPin, m_finishPin;
+    OIIO::ImageBuf m_dot, m_startPin, m_finishPin, m_arrow;
     boost::filesystem::path m_map;
     boost::filesystem::path m_font;
+    std::mutex m_lock;
+
+    std::unordered_map<int, OIIO::ImageBuf> m_arrows;
 
     Resources(const boost::filesystem::path &dir) : m_dir(dir) {
     }
@@ -71,6 +75,8 @@ public:
     const boost::filesystem::path &GetFontPath() const {
         return m_font;
     }
+
+    const OIIO::ImageBuf &GetArrow(int angle);
 };
 
 #endif

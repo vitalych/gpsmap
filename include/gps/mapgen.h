@@ -32,39 +32,6 @@
 #include "resources.h"
 #include "tilemanager.h"
 
-class MapImageGenerator;
-using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
-
-class MapImageGenerator {
-private:
-    gpx::GPXPtr m_gpx;
-    ResourcesPtr m_res;
-    OIIO::ImageBuf m_grid;
-    TileManagerPtr m_tiles;
-    int m_centerx, m_centery;
-    int m_viewportx, m_viewporty;
-    int m_zoom;
-
-    // TODO: clean hard-coded constants
-    MapImageGenerator(gpx::GPXPtr &gpx, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom)
-        : m_gpx(gpx), m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)), m_tiles(tiles), m_centerx(0),
-          m_centery(0), m_zoom(zoom) {
-    }
-
-    bool ToViewPortCoordinates(OIIO::ImageBuf &ib, double lat, double lon, int &x, int &y);
-
-    bool DrawDot(OIIO::ImageBuf &ib);
-    void DrawMarkers(OIIO::ImageBuf &ib);
-    void DrawTrack(OIIO::ImageBuf &ib);
-
-public:
-    static MapImageGeneratorPtr Create(gpx::GPXPtr &gpx, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom) {
-        return MapImageGeneratorPtr(new MapImageGenerator(gpx, tiles, resources, zoom));
-    }
-
-    bool Generate(OIIO::ImageBuf &ib, double lat, double lon);
-};
-
 // Tracks geo data associated with each frame
 class GeoTracker;
 using GeoTrackerPtr = std::shared_ptr<GeoTracker>;
@@ -77,10 +44,10 @@ private:
     size_t m_lastItemIdx;
 
     double m_lon, m_lat, m_speed, m_dist, m_elevation, m_grade;
+    double m_bearing;
     time_t m_date;
 
     GeoTracker(gpx::GPXPtr gpx, size_t first, size_t last) : m_gpx(gpx) {
-        m_nextItemIdx = 0;
         m_firstItemIdx = first;
         m_lastItemIdx = last;
         m_nextItemIdx = first;
@@ -115,11 +82,52 @@ public:
         return m_grade;
     }
 
+    double Bearing() const {
+        return m_bearing;
+    }
+
     time_t Date() const {
         return m_date;
     }
 
     bool UpdateFrame(int frameIndex, int fps);
+};
+
+class MapImageGenerator;
+using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
+
+class MapImageGenerator {
+private:
+    gpx::GPXPtr m_gpx;
+    GeoTrackerPtr m_tracker;
+    ResourcesPtr m_res;
+    OIIO::ImageBuf m_grid;
+    TileManagerPtr m_tiles;
+    int m_centerx, m_centery;
+    int m_viewportx, m_viewporty;
+    int m_zoom;
+
+    // TODO: clean hard-coded constants
+    MapImageGenerator(gpx::GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles, ResourcesPtr &resources,
+                      int zoom)
+        : m_gpx(gpx), m_tracker(tracker), m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)),
+          m_tiles(tiles), m_centerx(0), m_centery(0), m_zoom(zoom) {
+    }
+
+    void ToViewPortCoordinates(OIIO::ImageBuf &ib, double lat, double lon, int &x, int &y) const;
+
+    bool DrawDot(OIIO::ImageBuf &ib);
+    void DrawMarkers(OIIO::ImageBuf &ib);
+    void DrawTrack(OIIO::ImageBuf &ib);
+    bool DrawArrow(OIIO::ImageBuf &ib, double bearing);
+
+public:
+    static MapImageGeneratorPtr Create(gpx::GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles,
+                                       ResourcesPtr &resources, int zoom) {
+        return MapImageGeneratorPtr(new MapImageGenerator(gpx, tracker, tiles, resources, zoom));
+    }
+
+    bool Generate(OIIO::ImageBuf &ib, double lat, double lon);
 };
 
 class LabelGenerator;

@@ -22,10 +22,19 @@
 
 #define GPX_H
 
+#include <math.h>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
+
+static inline double to_rad(double deg) {
+    return deg * M_PI / 180.0;
+}
+
+static inline double to_deg(double rad) {
+    return rad * 180.0 / M_PI;
+}
 
 namespace gpx {
 struct TrackItem {
@@ -38,6 +47,7 @@ struct TrackItem {
     float Grade;
     double DistanceDelta;
     double TotalDistance;
+    double Bearing;
 
     bool operator<(const TrackItem &item) {
         return Timestamp < item.Timestamp;

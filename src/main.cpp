@@ -166,15 +166,19 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, ResourcesPtr resource
         return false;
     };
 
+    FrameState fs;
+    fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
+    fs.labelGen = LabelGenerator::Create(fs.geoTracker, resources->GetFontPath().string());
+
     // Round robin zoom
     if (duration > 120) {
         // Don't cycle through short segments.
         // It's easier to do video synchronization with a precise map at all times.
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 5), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 7), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 11), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 5), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 7), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 11), 5));
     }
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(tiles, resources, 16), 60));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 16), 60));
     largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;
@@ -187,9 +191,6 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, ResourcesPtr resource
 
     std::cout << "Encoding to " << videoPath << std::endl;
 
-    FrameState fs;
-    fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
-    fs.labelGen = LabelGenerator::Create(fs.geoTracker, resources->GetFontPath().string());
     fs.mapSwitcher = MapSwitcher::Create(fs.geoTracker, overrideCb);
     for (auto m : zoomedMaps) {
         fs.mapSwitcher->AddMapGenerator(m.first, m.second);
