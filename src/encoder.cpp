@@ -19,6 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <sstream>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -159,6 +161,10 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
     }
     ret->enc = c;
 
+    std::stringstream codecParams;
+    codecParams << "pools=1:numa-pools=1";
+    auto cp = codecParams.str();
+
     switch (ret->codec->type) {
         case AVMEDIA_TYPE_VIDEO:
             c->codec_id = codec_id;
@@ -173,6 +179,11 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
              * identical to 1. */
             ret->st->time_base = (AVRational){1, m_fps};
             c->time_base = ret->st->time_base;
+
+            // Doesn't work with x265
+            // c->thread_count = 1;
+            // c->thread_type = FF_THREAD_FRAME;
+            av_opt_set(c->priv_data, "x265-params", cp.c_str(), 0);
 
             c->gop_size = 12; /* emit one intra frame every twelve frames at most */
             c->pix_fmt = STREAM_PIX_FMT;
