@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
     volatile bool terminated = false;
     auto printStats = [&] {
         while (!terminated) {
-            auto totalSeconds = g_processedFrames / 60;
+            auto totalSeconds = g_processedFrames / 25;
             auto seconds = totalSeconds % 60;
             auto minutes = totalSeconds / 60;
             std::cout << g_processedFrames << " frames - " << std::setfill('0') << std::setw(2) << minutes << ":"
