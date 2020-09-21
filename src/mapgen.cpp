@@ -264,8 +264,7 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
 
     std::stringstream lbl1;
     lbl1 << (int) (m_geo->Speed() * 3600 / 1000) << " km/h";
-    lbl1 << "  " << (int) m_geo->Elevation() << " m"
-         << "  " << (int) m_geo->Grade() << "%";
+    lbl1 << "  " << (int) m_geo->Elevation() << " m";
     lbl1 << "  " << std::fixed << std::setprecision(2) << m_geo->Distance() / 1000.0 << " km";
     auto lbl1Str = lbl1.str();
 
