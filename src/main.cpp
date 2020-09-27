@@ -141,15 +141,24 @@ static std::string StripSpecialCharacters(const std::string &str) {
 
 using ZoomedMaps = std::vector<std::pair<MapImageGeneratorPtr, int>>;
 
-static void EncodeOneSegment(int id, TileManagerPtr tiles, ResourcesPtr resources, gpx::GPXPtr gpx, gpx::Segment seg,
-                             int i, boost::filesystem::path OutputDirectory) {
+struct EncodingParams {
+    TileManagerPtr tiles;
+    ResourcesPtr resources;
+    gpx::GPXPtr gpx;
+    gpx::Segment seg;
+    int segmentSequenceId;
+    int fileSequenceId;
+    boost::filesystem::path OutputDirectory;
+};
+
+static void EncodeOneSegment(int unused, EncodingParams &p) {
 
     ZoomedMaps zoomedMaps;
 
     gpx::TrackItem start, end;
-    gpx->GetItem(seg.first, start);
-    gpx->GetItem(seg.second, end);
-    std::cout << "Segment start=" << seg.first << " end=" << seg.second << std::endl;
+    p.gpx->GetItem(p.seg.first, start);
+    p.gpx->GetItem(p.seg.second, end);
+    std::cout << "Segment start=" << p.seg.first << " end=" << p.seg.second << std::endl;
     std::cout << "  " << start << "\n";
     std::cout << "  " << end << "\n";
 
@@ -166,26 +175,29 @@ static void EncodeOneSegment(int id, TileManagerPtr tiles, ResourcesPtr resource
     };
 
     FrameState fs;
-    fs.geoTracker = GeoTracker::Create(gpx, seg.first, seg.second);
-    fs.labelGen = LabelGenerator::Create(fs.geoTracker, resources->GetFontPath().string());
+    fs.geoTracker = GeoTracker::Create(p.gpx, p.seg.first, p.seg.second);
+    fs.labelGen = LabelGenerator::Create(fs.geoTracker, p.resources->GetFontPath().string());
 
     // Round robin zoom
     if (duration > 120) {
         // Don't cycle through short segments.
         // It's easier to do video synchronization with a precise map at all times.
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 5), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 7), 5));
-        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 11), 5));
+        zoomedMaps.push_back(
+            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 5), 5));
+        zoomedMaps.push_back(
+            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 7), 5));
+        zoomedMaps.push_back(
+            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 11), 5));
     }
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(gpx, fs.geoTracker, tiles, resources, 16), 60));
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 16), 60));
     largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;
-    boost::filesystem::path videoPath(OutputDirectory);
+    boost::filesystem::path videoPath(p.OutputDirectory);
 
-    videoFileName << std::setw(3) << std::setfill('0') << i << " - " << StripSpecialCharacters(start.OriginalTimestamp)
-                  << ".mp4";
-    ++i;
+    videoFileName << std::setw(3) << std::setfill('0') << p.fileSequenceId << "-" << std::setw(3) << std::setfill('0')
+                  << p.segmentSequenceId << " - " << StripSpecialCharacters(start.OriginalTimestamp) << ".mp4";
+
     videoPath.append(videoFileName.str());
 
     std::cout << "Encoding to " << videoPath << std::endl;
@@ -244,6 +256,9 @@ int main(int argc, char **argv) {
 
     task_set tasks(tp);
     {
+        std::sort(args.InputGPXPaths.begin(), args.InputGPXPaths.end());
+        int j = 0;
+
         for (auto f : args.InputGPXPaths) {
             auto gpx = gpx::GPX::Create();
             std::cout << "Loading " << f << std::endl;
@@ -252,9 +267,18 @@ int main(int argc, char **argv) {
 
             int i = 0;
             for (const auto &seg : gpx->GetSegments()) {
-                tasks.push(tp->push(EncodeOneSegment, tiles, resources, gpx, seg, i, args.OutputDirectory));
+                EncodingParams p;
+                p.gpx = gpx;
+                p.seg = seg;
+                p.tiles = tiles;
+                p.resources = resources;
+                p.fileSequenceId = j;
+                p.segmentSequenceId = i;
+                p.OutputDirectory = args.OutputDirectory;
+                tasks.push(tp->push(EncodeOneSegment, p));
                 ++i;
             }
+            ++j;
         }
     }
     tasks.wait(true);
