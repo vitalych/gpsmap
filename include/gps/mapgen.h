@@ -32,11 +32,16 @@
 #include "resources.h"
 #include "tilemanager.h"
 
+class IFrameGenerator {
+public:
+    virtual bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) = 0;
+};
+
 // Tracks geo data associated with each frame
 class GeoTracker;
 using GeoTrackerPtr = std::shared_ptr<GeoTracker>;
 
-class GeoTracker {
+class GeoTracker : public IFrameGenerator {
 private:
     gpx::GPXPtr m_gpx;
     size_t m_firstItemIdx;
@@ -90,13 +95,13 @@ public:
         return m_date;
     }
 
-    bool UpdateFrame(int frameIndex, int fps);
+    virtual bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps);
 };
 
 class MapImageGenerator;
 using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
 
-class MapImageGenerator {
+class MapImageGenerator : public IFrameGenerator {
 private:
     gpx::GPXPtr m_gpx;
     GeoTrackerPtr m_tracker;
@@ -127,13 +132,13 @@ public:
         return MapImageGeneratorPtr(new MapImageGenerator(gpx, tracker, tiles, resources, zoom));
     }
 
-    bool Generate(OIIO::ImageBuf &ib, double lat, double lon);
+    bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps);
 };
 
 class LabelGenerator;
 using LabelGeneratorPtr = std::shared_ptr<LabelGenerator>;
 
-class LabelGenerator {
+class LabelGenerator : public IFrameGenerator {
 private:
     GeoTrackerPtr m_geo;
     std::string m_fontPath;
@@ -150,14 +155,14 @@ public:
         return LabelGeneratorPtr(new LabelGenerator(geo, fontPath));
     }
 
-    bool Generate(OIIO::ImageBuf &ib);
+    bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps);
 };
 
 class MapSwitcher;
 using MapSwitcherPtr = std::shared_ptr<MapSwitcher>;
 using MapSwitcherCb = std::function<bool(int, int &)>;
 
-class MapSwitcher {
+class MapSwitcher : public IFrameGenerator {
 private:
     using MapImageGenerators = std::vector<std::pair<MapImageGeneratorPtr, int>>;
 
@@ -186,7 +191,7 @@ public:
         m_remainingDuration = m_maps[0].second;
     }
 
-    bool Generate(int second, OIIO::ImageBuf &ib);
+    bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps);
 };
 
 #endif

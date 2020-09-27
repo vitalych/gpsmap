@@ -43,8 +43,11 @@ bool Overlay(ImageBuf &dest, const ImageBuf &source, int x, int y) {
     return true;
 }
 
-bool MapImageGenerator::Generate(ImageBuf &ib, double lat, double lon) {
+bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     int px, py;
+    auto lat = m_tracker->Latitude();
+    auto lon = m_tracker->Longitude();
+
     auto tile = m_tiles->GetTile(lat, lon, px, py, m_zoom);
     if (!tile) {
         std::cerr << "Could not get tile for " << lat << " " << lon << std::endl;
@@ -214,7 +217,7 @@ double angle_distance(double a1, double a2) {
     return result * sign;
 }
 
-bool GeoTracker::UpdateFrame(int frameIndex, int fps) {
+bool GeoTracker::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     gpx::TrackItem firstItem;
     if (!m_gpx->GetItem(m_firstItemIdx, firstItem)) {
         // Nothing more to render
@@ -283,7 +286,7 @@ static std::string PrintTime(time_t ts) {
     return buff;
 }
 
-bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
+bool LabelGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     int width = ib.spec().width;
     int height = ib.spec().height;
 
@@ -345,7 +348,9 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib) {
     return true;
 }
 
-bool MapSwitcher::Generate(int second, OIIO::ImageBuf &ib) {
+bool MapSwitcher::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
+    int second = frameIndex / fps;
+
     if (second != m_prevSecond) {
         if (m_prevSecond >= 0) {
             --m_remainingDuration;
@@ -369,5 +374,5 @@ bool MapSwitcher::Generate(int second, OIIO::ImageBuf &ib) {
         m_prevSecond = second;
     }
 
-    return m_maps[m_currentMapIndex].first->Generate(ib, m_geo->Latitude(), m_geo->Longitude());
+    return m_maps[m_currentMapIndex].first->Generate(ib, frameIndex, fps);
 }

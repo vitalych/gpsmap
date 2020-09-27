@@ -102,7 +102,6 @@ std::atomic_uint g_processedFrames(0);
 
 bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, FrameState &state) {
     auto frame_index = os.next_pts;
-    auto second = (double) frame_index / (double) encoder.GetFPS();
 
     ++g_processedFrames;
 
@@ -114,15 +113,15 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, FrameState &state) {
 
     ImageBuf ib(ImageSpec(width, height, 4), pixels);
 
-    if (!state.geoTracker->UpdateFrame(frame_index, encoder.GetFPS())) {
+    if (!state.geoTracker->Generate(ib, frame_index, encoder.GetFPS())) {
         return false;
     }
 
-    if (!state.mapSwitcher->Generate(second, ib)) {
+    if (!state.mapSwitcher->Generate(ib, frame_index, encoder.GetFPS())) {
         return false;
     }
 
-    if (!state.labelGen->Generate(ib)) {
+    if (!state.labelGen->Generate(ib, frame_index, encoder.GetFPS())) {
         return false;
     }
 
