@@ -194,10 +194,19 @@ void GPX::CreateSegments() {
         }
     }
 
-    for (size_t i = 0; i < boundaries.size(); ++i) {
-        auto start = boundaries[i];
-        auto end = i == boundaries.size() - 1 ? m_trackItems.size() - 1 : boundaries[i + 1];
-        m_segments.push_back(Segment(start, end));
+    auto bs = boundaries.size();
+    for (size_t i = 0; i < bs; ++i) {
+        int start = boundaries[i];
+        int end = i == bs - 1 ? m_trackItems.size() - 1 : boundaries[i + 1];
+
+        if (i == bs - 1) {
+            if (start < end) {
+                m_segments.push_back(Segment(start, end));
+            }
+        } else {
+            assert(start < end);
+            m_segments.push_back(Segment(start, end));
+        }
     }
 }
 
