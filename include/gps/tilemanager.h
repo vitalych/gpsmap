@@ -64,13 +64,21 @@ template <> struct hash<TileDesc> {
 } // namespace std
 
 class Tile {
+public:
+    enum State { LOADING, LOADED, FAILED };
+
 private:
     std::string m_filePath;
     TileDesc m_desc;
 
     OIIO::ImageBuf m_image;
 
+    std::mutex m_lock;
+    std::condition_variable m_cv;
+    State m_state;
+
     Tile(const std::string &filePath, const TileDesc &desc);
+    Tile(const TileDesc &desc);
 
 public:
     OIIO::ImageBuf &GetImage() {
@@ -82,6 +90,11 @@ public:
     }
 
     static TilePtr Create(const std::string &filePath, const TileDesc &desc);
+    static TilePtr Create(const TileDesc &desc);
+    void Load(const std::string &filePath);
+    void Fail();
+
+    bool WaitUntilDownloaded();
 };
 
 using Tiles = std::unordered_map<TileDesc, TilePtr>;
@@ -105,7 +118,9 @@ private:
         m_tileHeight = 512;
     }
 
-    TilePtr DownloadTile(const TileDesc &tile) const;
+    bool DownloadTile(TilePtr &tile) const;
+
+    TilePtr GetTileFast(int x, int y, int zoom);
 
 public:
     TilePtr GetTile(int x, int y, int zoom);
