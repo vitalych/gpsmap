@@ -25,7 +25,7 @@
 #include <iostream>
 #include <math.h>
 
-#include <gps/gpx.h>
+#include <gpsmap/gpx.h>
 
 namespace pt = boost::property_tree;
 

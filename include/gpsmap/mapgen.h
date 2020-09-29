@@ -45,7 +45,7 @@ using GeoTrackerPtr = std::shared_ptr<GeoTracker>;
 
 class GeoTracker : public IFrameGenerator {
 private:
-    gpx::GPXPtr m_gpx;
+    GPXPtr m_gpx;
     size_t m_firstItemIdx;
     size_t m_nextItemIdx;
     size_t m_lastItemIdx;
@@ -54,14 +54,14 @@ private:
     double m_bearing;
     time_t m_date;
 
-    GeoTracker(gpx::GPXPtr gpx, size_t first, size_t last) : m_gpx(gpx) {
+    GeoTracker(GPXPtr gpx, size_t first, size_t last) : m_gpx(gpx) {
         m_firstItemIdx = first;
         m_lastItemIdx = last;
         m_nextItemIdx = first;
     };
 
 public:
-    static GeoTrackerPtr Create(gpx::GPXPtr gpx, size_t first, size_t last) {
+    static GeoTrackerPtr Create(GPXPtr gpx, size_t first, size_t last) {
         return GeoTrackerPtr(new GeoTracker(gpx, first, last));
     }
 
@@ -105,7 +105,7 @@ using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
 
 class MapImageGenerator : public IFrameGenerator {
 private:
-    gpx::GPXPtr m_gpx;
+    GPXPtr m_gpx;
     GeoTrackerPtr m_tracker;
     ResourcesPtr m_res;
     OIIO::ImageBuf m_grid;
@@ -115,8 +115,7 @@ private:
     int m_zoom;
 
     // TODO: clean hard-coded constants
-    MapImageGenerator(gpx::GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles, ResourcesPtr &resources,
-                      int zoom)
+    MapImageGenerator(GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom)
         : m_gpx(gpx), m_tracker(tracker), m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)),
           m_tiles(tiles), m_centerx(0), m_centery(0), m_zoom(zoom) {
     }
@@ -129,7 +128,7 @@ private:
     bool DrawArrow(OIIO::ImageBuf &ib, double bearing);
 
 public:
-    static MapImageGeneratorPtr Create(gpx::GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles,
+    static MapImageGeneratorPtr Create(GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles,
                                        ResourcesPtr &resources, int zoom) {
         return MapImageGeneratorPtr(new MapImageGenerator(gpx, tracker, tiles, resources, zoom));
     }

@@ -22,7 +22,7 @@
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/imageio.h>
 
-#include <gps/resources.h>
+#include <gpsmap/resources.h>
 
 OIIO_NAMESPACE_USING
 

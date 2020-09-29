@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <gps/mapgen.h>
+#include <gpsmap/mapgen.h>
 
 OIIO_NAMESPACE_USING
 
@@ -220,7 +220,7 @@ double angle_distance(double a1, double a2) {
 }
 
 bool GeoTracker::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
-    gpx::TrackItem firstItem;
+    TrackItem firstItem;
     if (!m_gpx->GetItem(m_firstItemIdx, firstItem)) {
         // Nothing more to render
         return false;
@@ -229,7 +229,7 @@ bool GeoTracker::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     auto second = (double) frameIndex / (double) fps;
     auto date = (double) firstItem.Timestamp + second;
 
-    gpx::TrackItem item;
+    TrackItem item;
     size_t prev_item = m_nextItemIdx;
 
     if (prev_item >= m_lastItemIdx) {
@@ -249,7 +249,7 @@ bool GeoTracker::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     auto bearingInc = item.Bearing;
 
     if (prev_item == m_nextItemIdx) {
-        gpx::TrackItem next_item;
+        TrackItem next_item;
         if (m_gpx->GetItem(m_nextItemIdx + 1, next_item)) {
             auto timeDiff = next_item.Timestamp - item.Timestamp;
             auto speedDiff = next_item.Speed - item.Speed;

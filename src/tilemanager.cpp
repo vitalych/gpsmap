@@ -27,7 +27,7 @@
 #include <math.h>
 #include <mutex>
 
-#include <gps/tilemanager.h>
+#include <gpsmap/tilemanager.h>
 
 namespace pt = boost::property_tree;
 

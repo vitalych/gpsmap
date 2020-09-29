@@ -33,7 +33,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include <gps/encoder.h>
+#include <gpsmap/encoder.h>
 
 using namespace gpsmap;
 

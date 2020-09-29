@@ -28,11 +28,11 @@
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/imageio.h>
 
-#include <gps/encoder.h>
-#include <gps/gpx.h>
-#include <gps/mapgen.h>
-#include <gps/resources.h>
-#include <gps/tilemanager.h>
+#include <gpsmap/encoder.h>
+#include <gpsmap/gpx.h>
+#include <gpsmap/mapgen.h>
+#include <gpsmap/resources.h>
+#include <gpsmap/tilemanager.h>
 
 OIIO_NAMESPACE_USING
 
