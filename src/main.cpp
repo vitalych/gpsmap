@@ -226,7 +226,9 @@ int main(int argc, char **argv) {
     Arguments args;
 
     if (!ParseCommandLine(argc, argv, args)) {
-        printf("usage: %s -gpx file1.gpx [-gpx file2.gpx...] -rsrcdir /path/to/resources -vout output.mp4\n", argv[0]);
+        printf("usage: %s -gpx file1.gpx [-gpx file2.gpx...] -tiles /path/to/tiles/dir -rsrcdir /path/to/resources "
+               "-outdir /path/to/out/dir\n",
+               argv[0]);
         return -1;
     }
 
