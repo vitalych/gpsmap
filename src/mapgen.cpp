@@ -22,6 +22,8 @@
 
 OIIO_NAMESPACE_USING
 
+namespace gpsmap {
+
 bool Overlay(ImageBuf &dest, const ImageBuf &source, int x, int y) {
     auto w = source.spec().width;
     auto h = source.spec().height;
@@ -376,3 +378,5 @@ bool MapSwitcher::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
 
     return m_maps[m_currentMapIndex].first->Generate(ib, frameIndex, fps);
 }
+
+} // namespace gpsmap

@@ -89,6 +89,8 @@ err:
     return ret;
 }
 
+namespace gpsmap {
+
 Tile::Tile(const std::string &filePath, const TileDesc &desc) : m_filePath(filePath), m_desc(desc), m_state(LOADED) {
     Load(filePath);
 }
@@ -253,3 +255,5 @@ TilePtr TileManager::GetTile(double lat, double lon, int &px, int &py, int zoom)
 
     return ret;
 }
+
+} // namespace gpsmap

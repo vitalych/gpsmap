@@ -32,6 +32,8 @@
 #include "resources.h"
 #include "tilemanager.h"
 
+namespace gpsmap {
+
 class IFrameGenerator {
 public:
     virtual bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) = 0;
@@ -193,5 +195,7 @@ public:
 
     bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps);
 };
+
+} // namespace gpsmap
 
 #endif

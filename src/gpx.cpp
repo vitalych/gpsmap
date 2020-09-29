@@ -29,7 +29,7 @@
 
 namespace pt = boost::property_tree;
 
-namespace gpx {
+namespace gpsmap {
 
 std::ostream &operator<<(std::ostream &os, TrackItem const &m) {
     os << "TrackItem " << m.OriginalTimestamp << " lat=" << m.Latitude << " lon=" << m.Longitude << " speed=" << m.Speed
@@ -242,4 +242,4 @@ bool GPX::GetClosestItem(time_t timestamp, size_t &nextItem, TrackItem &item) {
     return false;
 }
 
-} // namespace gpx
+} // namespace gpsmap

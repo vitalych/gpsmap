@@ -36,6 +36,8 @@
 
 OIIO_NAMESPACE_USING
 
+using namespace gpsmap;
+
 struct Arguments {
     boost::filesystem::path ResourceDir;
     std::string TilesRootPath;
@@ -144,8 +146,8 @@ using ZoomedMaps = std::vector<std::pair<MapImageGeneratorPtr, int>>;
 struct EncodingParams {
     TileManagerPtr tiles;
     ResourcesPtr resources;
-    gpx::GPXPtr gpx;
-    gpx::Segment seg;
+    gpsmap::GPXPtr gpx;
+    gpsmap::Segment seg;
     int segmentSequenceId;
     int fileSequenceId;
     boost::filesystem::path OutputDirectory;
@@ -155,7 +157,7 @@ static void EncodeOneSegment(int unused, EncodingParams &p) {
 
     ZoomedMaps zoomedMaps;
 
-    gpx::TrackItem start, end;
+    gpsmap::TrackItem start, end;
     p.gpx->GetItem(p.seg.first, start);
     p.gpx->GetItem(p.seg.second, end);
     std::cout << "Segment start=" << p.seg.first << " end=" << p.seg.second << std::endl;
@@ -260,7 +262,7 @@ int main(int argc, char **argv) {
         int j = 0;
 
         for (auto f : args.InputGPXPaths) {
-            auto gpx = gpx::GPX::Create();
+            auto gpx = gpsmap::GPX::Create();
             std::cout << "Loading " << f << std::endl;
             gpx->LoadFromFile(f);
             gpx->CreateSegments();

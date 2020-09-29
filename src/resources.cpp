@@ -49,6 +49,8 @@ static OIIO::ImageBuf Resize(const OIIO::ImageBuf in, int nw, int nh) {
     }
 }
 
+namespace gpsmap {
+
 bool Resources::Load() {
     if (!LoadFromFile(m_dir, "dot32.png", m_dot)) {
         return false;
@@ -101,3 +103,5 @@ const OIIO::ImageBuf &Resources::GetArrow(int angle) {
         return m_arrows[angle];
     }
 }
+
+} // namespace gpsmap

@@ -36,7 +36,7 @@ static inline double to_deg(double rad) {
     return rad * 180.0 / M_PI;
 }
 
-namespace gpx {
+namespace gpsmap {
 struct TrackItem {
     time_t Timestamp;
     std::string OriginalTimestamp;
@@ -100,6 +100,6 @@ public:
 
 time_t parse_time(const std::string &iso);
 std::string time_to_str(time_t t);
-} // namespace gpx
+} // namespace gpsmap
 
 #endif

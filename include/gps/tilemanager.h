@@ -31,6 +31,8 @@
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/imageio.h>
 
+namespace gpsmap {
+
 class TileManager;
 using TileManagerPtr = std::shared_ptr<TileManager>;
 
@@ -49,10 +51,12 @@ struct TileDesc {
     }
 };
 
+} // namespace gpsmap
+
 namespace std {
 
-template <> struct hash<TileDesc> {
-    std::size_t operator()(const TileDesc &k) const {
+template <> struct hash<gpsmap::TileDesc> {
+    std::size_t operator()(const gpsmap::TileDesc &k) const {
         using std::hash;
         using std::size_t;
         using std::string;
@@ -62,6 +66,8 @@ template <> struct hash<TileDesc> {
 };
 
 } // namespace std
+
+namespace gpsmap {
 
 class Tile {
 public:
@@ -128,5 +134,7 @@ public:
     void GetTileCoords(double lat, double lon, int zoom, int &xt, int &yt, int &px, int &py) const;
     static TileManagerPtr Create(const std::string &tilesRootPath, const std::string &mapDescPath);
 };
+
+} // namespace gpsmap
 
 #endif

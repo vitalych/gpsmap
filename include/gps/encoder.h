@@ -37,6 +37,8 @@ struct AVFrame;
 #include <libavcodec/avcodec.h>
 }
 
+namespace gpsmap {
+
 struct OutputStream {
     AVCodec *codec = nullptr;
     AVStream *st = nullptr;
@@ -111,5 +113,7 @@ public:
         return m_fps;
     }
 };
+
+} // namespace gpsmap
 
 #endif

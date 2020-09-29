@@ -35,6 +35,8 @@ extern "C" {
 
 #include <gps/encoder.h>
 
+using namespace gpsmap;
+
 bool g_logpacket = false;
 
 #define STREAM_PIX_FMT AV_PIX_FMT_YUV420P

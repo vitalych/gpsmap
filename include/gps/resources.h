@@ -29,6 +29,8 @@
 #include <mutex>
 #include <string>
 
+namespace gpsmap {
+
 class Resources;
 using ResourcesPtr = std::shared_ptr<Resources>;
 
@@ -78,5 +80,7 @@ public:
 
     const OIIO::ImageBuf &GetArrow(int angle);
 };
+
+} // namespace gpsmap
 
 #endif
