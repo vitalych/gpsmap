@@ -23,7 +23,6 @@ add_executable(
     encoder.cpp
     main.cpp
     gpx.cpp
-    decoder.cpp
     tilemanager.cpp
     mapgen.cpp
     resources.cpp
