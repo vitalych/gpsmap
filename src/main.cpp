@@ -220,9 +220,6 @@ static void EncodeOneSegment(int unused, EncodingParams &p) {
 }
 
 int main(int argc, char **argv) {
-
-    attribute("threads", 32);
-
     Arguments args;
 
     if (!ParseCommandLine(argc, argv, args)) {
