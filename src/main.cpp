@@ -98,6 +98,7 @@ struct FrameState {
     LabelGeneratorPtr labelGen;
     GeoTrackerPtr geoTracker;
     MapSwitcherPtr mapSwitcher;
+    bool failed;
 };
 
 std::atomic_uint g_processedFrames(0);
@@ -120,10 +121,12 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, FrameState &state) {
     }
 
     if (!state.mapSwitcher->Generate(ib, frame_index, encoder.GetFPS())) {
+        state.failed = true;
         return false;
     }
 
     if (!state.labelGen->Generate(ib, frame_index, encoder.GetFPS())) {
+        state.failed = true;
         return false;
     }
 
@@ -153,6 +156,8 @@ struct EncodingParams {
     boost::filesystem::path OutputDirectory;
 };
 
+static std::vector<std::string> s_filesWithErrors;
+
 static void EncodeOneSegment(int unused, EncodingParams &p) {
 
     ZoomedMaps zoomedMaps;
@@ -177,6 +182,7 @@ static void EncodeOneSegment(int unused, EncodingParams &p) {
     };
 
     FrameState fs;
+    fs.failed = false;
     fs.geoTracker = GeoTracker::Create(p.gpx, p.seg.first, p.seg.second);
     fs.labelGen = LabelGenerator::Create(fs.geoTracker, p.resources->GetFontPath().string());
 
@@ -217,6 +223,11 @@ static void EncodeOneSegment(int unused, EncodingParams &p) {
 
     encoder->EncodeLoop();
     encoder->Finalize();
+
+    if (fs.failed) {
+        std::cerr << "Error while generating map\n";
+        s_filesWithErrors.push_back(videoPath.string());
+    }
 }
 
 int main(int argc, char **argv) {
@@ -285,5 +296,14 @@ int main(int argc, char **argv) {
     tasks.wait(true);
     terminated = true;
     thr.join();
+
+    if (s_filesWithErrors.size() > 0) {
+        std::cerr << "Encoding failed for these files:\n";
+        for (const auto &f : s_filesWithErrors) {
+            std::cerr << f << "\n";
+        }
+        return -1;
+    }
+
     return 0;
 }
