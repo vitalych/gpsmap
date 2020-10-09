@@ -103,6 +103,8 @@ bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
         if (!LoadGrid(tile)) {
             return false;
         }
+
+        DrawTrack(m_grid);
     }
 
     // Render centered image
@@ -118,7 +120,6 @@ bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     m_viewportx = px - tw / 2;
     m_viewporty = py - th / 2;
 
-    DrawTrack(ib);
     DrawMarkers(ib);
 
     return true;
@@ -171,7 +172,7 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
 
     for (const auto &item : m_gpx->GetItems()) {
         int x, y;
-        ToViewPortCoordinates(item.Latitude, item.Longitude, x, y);
+        ToGridCoordinates(item.Latitude, item.Longitude, x, y);
         if (hasPrev) {
             ImageBufAlgo::render_line(ib, prevx, prevy, x, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
             ImageBufAlgo::render_line(ib, prevx, prevy, x + 1, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
