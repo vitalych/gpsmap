@@ -69,6 +69,7 @@ private:
 
     std::vector<TrackItem> m_trackItems;
     Segments m_segments;
+    double m_initialDistance;
 
 public:
     void LoadFromFile(const std::string &path);
@@ -93,6 +94,10 @@ public:
 
     const TrackItem &Last() const {
         return m_trackItems.back();
+    }
+
+    void SetInitialDistance(double distance) {
+        m_initialDistance = distance;
     }
 
     static GPXPtr Create();

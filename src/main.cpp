@@ -270,11 +270,13 @@ int main(int argc, char **argv) {
     {
         std::sort(args.InputGPXPaths.begin(), args.InputGPXPaths.end());
         int j = 0;
-
+        double initialDistance = 0.0;
         for (auto f : args.InputGPXPaths) {
             auto gpx = gpsmap::GPX::Create();
             std::cout << "Loading " << f << std::endl;
+            gpx->SetInitialDistance(initialDistance);
             gpx->LoadFromFile(f);
+
             gpx->CreateSegments();
 
             int i = 0;
@@ -290,6 +292,7 @@ int main(int argc, char **argv) {
                 tasks.push(tp->push(EncodeOneSegment, p));
                 ++i;
             }
+            initialDistance = gpx->Last().TotalDistance;
             ++j;
         }
     }

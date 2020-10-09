@@ -158,6 +158,10 @@ void GPX::LoadFromFile(const std::string &path) {
 
     for (size_t i = 1; i < m_trackItems.size(); ++i) {
         auto &ti0 = m_trackItems[i - 1];
+        if (i == 1) {
+            ti0.TotalDistance = m_initialDistance;
+        }
+
         auto &ti1 = m_trackItems[i];
         ti1.DistanceDelta = distance(ti0.Latitude, ti0.Longitude, ti1.Latitude, ti1.Longitude);
         ti1.TotalDistance = ti0.TotalDistance + ti1.DistanceDelta;
