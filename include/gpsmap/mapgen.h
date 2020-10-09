@@ -136,7 +136,7 @@ private:
           m_tiles(tiles), m_centerx(0), m_centery(0), m_zoom(zoom), m_markers(markers) {
     }
 
-    void ToViewPortCoordinates(OIIO::ImageBuf &ib, double lat, double lon, int &x, int &y) const;
+    void ToViewPortCoordinates(double lat, double lon, int &x, int &y) const;
 
     bool LoadGrid(TilePtr tile);
     bool DrawDot(OIIO::ImageBuf &ib);

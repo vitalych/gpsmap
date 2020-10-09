@@ -158,7 +158,7 @@ void MapImageGenerator::DrawMarkers(ImageBuf &ib) {
 
     int vx, vy;
     for (const auto &marker : m_markers) {
-        ToViewPortCoordinates(ib, marker.Latitude, marker.Longitude, vx, vy);
+        ToViewPortCoordinates(marker.Latitude, marker.Longitude, vx, vy);
         auto &img = *marker.Image;
         Overlay(ib, img, vx - marker.x, vy - marker.y);
     }
@@ -171,7 +171,7 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
 
     for (const auto &item : m_gpx->GetItems()) {
         int x, y;
-        ToViewPortCoordinates(ib, item.Latitude, item.Longitude, x, y);
+        ToViewPortCoordinates(item.Latitude, item.Longitude, x, y);
         if (hasPrev) {
             ImageBufAlgo::render_line(ib, prevx, prevy, x, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
             ImageBufAlgo::render_line(ib, prevx, prevy, x + 1, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
@@ -184,7 +184,7 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
 
 // This function may return negative coordinates.
 // The drawing functions will do the clipping.
-void MapImageGenerator::ToViewPortCoordinates(ImageBuf &ib, double lat, double lon, int &x, int &y) const {
+void MapImageGenerator::ToViewPortCoordinates(double lat, double lon, int &x, int &y) const {
     // 1. Get tile coordinates
     int xt, yt, px, py;
     m_tiles->GetTileCoords(lat, lon, m_zoom, xt, yt, px, py);
