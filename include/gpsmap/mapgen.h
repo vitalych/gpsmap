@@ -137,6 +137,7 @@ private:
     }
 
     void ToViewPortCoordinates(double lat, double lon, int &x, int &y) const;
+    void ToGridCoordinates(double lat, double lon, int &x, int &y) const;
 
     bool LoadGrid(TilePtr tile);
     bool DrawDot(OIIO::ImageBuf &ib);

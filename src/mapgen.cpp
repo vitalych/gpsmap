@@ -185,6 +185,19 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
 // This function may return negative coordinates.
 // The drawing functions will do the clipping.
 void MapImageGenerator::ToViewPortCoordinates(double lat, double lon, int &x, int &y) const {
+    ToGridCoordinates(lat, lon, x, y);
+
+    // 3. Translate grid coords to viewport coords
+    auto vx = x - m_viewportx;
+    auto vy = y - m_viewporty;
+
+    x = vx;
+    y = vy;
+}
+
+// This function may return negative coordinates.
+// The drawing functions will do the clipping.
+void MapImageGenerator::ToGridCoordinates(double lat, double lon, int &x, int &y) const {
     // 1. Get tile coordinates
     int xt, yt, px, py;
     m_tiles->GetTileCoords(lat, lon, m_zoom, xt, yt, px, py);
@@ -198,12 +211,8 @@ void MapImageGenerator::ToViewPortCoordinates(double lat, double lon, int &x, in
     px += xt * 512;
     py += yt * 512;
 
-    // 3. Translate grid coords to viewport coords
-    auto vx = px - m_viewportx;
-    auto vy = py - m_viewporty;
-
-    x = vx;
-    y = vy;
+    x = px;
+    y = py;
 }
 
 double angle_distance(double a1, double a2) {
