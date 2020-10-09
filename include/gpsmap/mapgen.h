@@ -138,6 +138,7 @@ private:
 
     void ToViewPortCoordinates(OIIO::ImageBuf &ib, double lat, double lon, int &x, int &y) const;
 
+    bool LoadGrid(TilePtr tile);
     bool DrawDot(OIIO::ImageBuf &ib);
     void DrawMarkers(OIIO::ImageBuf &ib);
     void DrawTrack(OIIO::ImageBuf &ib);

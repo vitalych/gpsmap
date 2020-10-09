@@ -45,6 +45,46 @@ bool Overlay(ImageBuf &dest, const ImageBuf &source, int x, int y) {
     return true;
 }
 
+bool MapImageGenerator::LoadGrid(TilePtr tile) {
+    auto td = tile->Desc();
+    auto tw = tile->GetImage().xmax() + 1;
+    auto th = tile->GetImage().ymax() + 1;
+
+    TilePtr grid[3][3];
+    grid[1][1] = tile;
+    for (auto i = -1; i <= 1; i++) {
+        for (auto j = -1; j <= 1; j++) {
+            auto t = m_tiles->GetTile(td.x + i, td.y + j, m_zoom);
+            if (!t) {
+                std::cerr << "Could not get tile x=" << td.x + i << " y=" << td.y + j << "\n";
+                return false;
+            }
+            auto img = t->GetImage();
+            grid[j + 1][i + 1] = t;
+        }
+    }
+
+    // Paint the whole grid
+    int cx = 0;
+    for (auto i = -1; i <= 1; i++) {
+        int cy = 0;
+        for (auto j = -1; j <= 1; j++) {
+            auto img = grid[j + 1][i + 1]->GetImage();
+            if (!ImageBufAlgo::paste(m_grid, cx, cy, 0, 0, img, {}, 1)) {
+                std::cerr << "Could not copy image" << std::endl;
+                return false;
+            }
+            cy += th;
+        }
+        cx += tw;
+    }
+
+    m_centerx = td.x;
+    m_centery = td.y;
+
+    return true;
+}
+
 bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     int px, py;
     auto lat = m_tracker->Latitude();
@@ -56,41 +96,13 @@ bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
         return false;
     }
     auto td = tile->Desc();
-
     auto tw = tile->GetImage().xmax() + 1;
     auto th = tile->GetImage().ymax() + 1;
 
     if (m_centerx != td.x || m_centery != td.y) {
-        TilePtr grid[3][3];
-        grid[1][1] = tile;
-        for (auto i = -1; i <= 1; i++) {
-            for (auto j = -1; j <= 1; j++) {
-                auto t = m_tiles->GetTile(td.x + i, td.y + j, m_zoom);
-                if (!t) {
-                    std::cerr << "Could not get tile x=" << td.x + i << " y=" << td.y + j << "\n";
-                    return false;
-                }
-                auto img = t->GetImage();
-                grid[j + 1][i + 1] = t;
-            }
+        if (!LoadGrid(tile)) {
+            return false;
         }
-
-        // Paint the whole grid
-        int cx = 0;
-        for (auto i = -1; i <= 1; i++) {
-            int cy = 0;
-            for (auto j = -1; j <= 1; j++) {
-                auto img = grid[j + 1][i + 1]->GetImage();
-                if (!ImageBufAlgo::paste(m_grid, cx, cy, 0, 0, img, {}, 1)) {
-                    std::cerr << "Could not copy image" << std::endl;
-                    return false;
-                }
-                cy += th;
-            }
-            cx += tw;
-        }
-        m_centerx = td.x;
-        m_centery = td.y;
     }
 
     // Render centered image
