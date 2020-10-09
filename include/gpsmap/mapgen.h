@@ -103,6 +103,19 @@ public:
 class MapImageGenerator;
 using MapImageGeneratorPtr = std::shared_ptr<MapImageGenerator>;
 
+struct Marker {
+    double Latitude;
+    double Longitude;
+
+    const OIIO::ImageBuf *Image;
+
+    // Coordinates in Image that correspond to latitude, longitude
+    int x;
+    int y;
+};
+
+using Markers = std::vector<Marker>;
+
 class MapImageGenerator : public IFrameGenerator {
 private:
     GPXPtr m_gpx;
@@ -114,10 +127,13 @@ private:
     int m_viewportx, m_viewporty;
     int m_zoom;
 
+    Markers m_markers;
+
     // TODO: clean hard-coded constants
-    MapImageGenerator(GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom)
+    MapImageGenerator(GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles, ResourcesPtr &resources, int zoom,
+                      const Markers &markers)
         : m_gpx(gpx), m_tracker(tracker), m_res(resources), m_grid(OIIO::ImageSpec(512 * 3, 512 * 3, 4)),
-          m_tiles(tiles), m_centerx(0), m_centery(0), m_zoom(zoom) {
+          m_tiles(tiles), m_centerx(0), m_centery(0), m_zoom(zoom), m_markers(markers) {
     }
 
     void ToViewPortCoordinates(OIIO::ImageBuf &ib, double lat, double lon, int &x, int &y) const;
@@ -129,8 +145,8 @@ private:
 
 public:
     static MapImageGeneratorPtr Create(GPXPtr &gpx, GeoTrackerPtr &tracker, TileManagerPtr &tiles,
-                                       ResourcesPtr &resources, int zoom) {
-        return MapImageGeneratorPtr(new MapImageGenerator(gpx, tracker, tiles, resources, zoom));
+                                       ResourcesPtr &resources, int zoom, const Markers &markers) {
+        return MapImageGeneratorPtr(new MapImageGenerator(gpx, tracker, tiles, resources, zoom, markers));
     }
 
     bool Generate(OIIO::ImageBuf &ib, int frameIndex, int fps);

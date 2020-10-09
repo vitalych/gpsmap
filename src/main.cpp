@@ -94,11 +94,29 @@ void ClearFrame(VideoEncoder &encoder, OutputStream &os) {
     }
 }
 
+struct GeoCoords {
+    double Latitude;
+    double Longitude;
+};
+
+struct EncodingParams {
+    TileManagerPtr tiles;
+    ResourcesPtr resources;
+    gpsmap::GPXPtr gpx;
+    gpsmap::Segment seg;
+    int segmentSequenceId;
+    int fileSequenceId;
+    GeoCoords startMarker;
+    GeoCoords endMarker;
+    boost::filesystem::path OutputDirectory;
+};
+
 struct FrameState {
     LabelGeneratorPtr labelGen;
     GeoTrackerPtr geoTracker;
     MapSwitcherPtr mapSwitcher;
     bool failed;
+    const EncodingParams *params;
 };
 
 std::atomic_uint g_processedFrames(0);
@@ -146,17 +164,42 @@ static std::string StripSpecialCharacters(const std::string &str) {
 
 using ZoomedMaps = std::vector<std::pair<MapImageGeneratorPtr, int>>;
 
-struct EncodingParams {
-    TileManagerPtr tiles;
-    ResourcesPtr resources;
-    gpsmap::GPXPtr gpx;
-    gpsmap::Segment seg;
-    int segmentSequenceId;
-    int fileSequenceId;
-    boost::filesystem::path OutputDirectory;
-};
-
 static std::vector<std::string> s_filesWithErrors;
+
+static Markers GetMarkers(EncodingParams &p) {
+    Markers markers;
+
+    // Start marker
+    {
+        Marker m;
+        m.Image = &p.resources->Start();
+        m.Latitude = p.startMarker.Latitude;
+        m.Longitude = p.startMarker.Longitude;
+
+        auto mw = m.Image->spec().width;
+        auto mh = m.Image->spec().height;
+
+        m.x = mw / 2;
+        m.y = mh;
+        markers.push_back(m);
+    }
+
+    // End marker
+    {
+        Marker m;
+        m.Image = &p.resources->Finish();
+        m.Latitude = p.endMarker.Latitude;
+        m.Longitude = p.endMarker.Longitude;
+
+        auto mw = m.Image->spec().width;
+
+        m.x = mw / 2;
+        m.y = 0;
+        markers.push_back(m);
+    }
+
+    return markers;
+}
 
 static void EncodeOneSegment(int unused, EncodingParams &p) {
 
@@ -182,22 +225,26 @@ static void EncodeOneSegment(int unused, EncodingParams &p) {
     };
 
     FrameState fs;
+    fs.params = &p;
     fs.failed = false;
     fs.geoTracker = GeoTracker::Create(p.gpx, p.seg.first, p.seg.second);
     fs.labelGen = LabelGenerator::Create(fs.geoTracker, p.resources->GetFontPath().string());
+
+    auto markers = GetMarkers(p);
 
     // Round robin zoom
     if (duration > 120) {
         // Don't cycle through short segments.
         // It's easier to do video synchronization with a precise map at all times.
         zoomedMaps.push_back(
-            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 5), 5));
+            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 5, markers), 5));
         zoomedMaps.push_back(
-            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 7), 5));
+            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 7, markers), 5));
         zoomedMaps.push_back(
-            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 11), 5));
+            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 11, markers), 5));
     }
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 16), 60));
+    zoomedMaps.push_back(
+        std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 16, markers), 60));
     largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;
@@ -269,16 +316,25 @@ int main(int argc, char **argv) {
     task_set tasks(tp);
     {
         std::sort(args.InputGPXPaths.begin(), args.InputGPXPaths.end());
-        int j = 0;
+
         double initialDistance = 0.0;
+        std::vector<GPXPtr> gpxs;
+
         for (auto f : args.InputGPXPaths) {
             auto gpx = gpsmap::GPX::Create();
             std::cout << "Loading " << f << std::endl;
             gpx->SetInitialDistance(initialDistance);
             gpx->LoadFromFile(f);
-
             gpx->CreateSegments();
+            initialDistance = gpx->Last().TotalDistance;
+            gpxs.push_back(gpx);
+        }
 
+        auto firstItem = (*gpxs.begin())->First();
+        auto lastItem = (*gpxs.rbegin())->Last();
+
+        int j = 0;
+        for (auto gpx : gpxs) {
             int i = 0;
             for (const auto &seg : gpx->GetSegments()) {
                 EncodingParams p;
@@ -289,6 +345,10 @@ int main(int argc, char **argv) {
                 p.fileSequenceId = j;
                 p.segmentSequenceId = i;
                 p.OutputDirectory = args.OutputDirectory;
+                p.startMarker.Latitude = firstItem.Latitude;
+                p.startMarker.Longitude = firstItem.Longitude;
+                p.endMarker.Latitude = lastItem.Latitude;
+                p.endMarker.Longitude = lastItem.Longitude;
                 tasks.push(tp->push(EncodeOneSegment, p));
                 ++i;
             }

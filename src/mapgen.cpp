@@ -145,21 +145,11 @@ void MapImageGenerator::DrawMarkers(ImageBuf &ib) {
     }
 
     int vx, vy;
-    auto first = m_gpx->First();
-    ToViewPortCoordinates(ib, first.Latitude, first.Longitude, vx, vy);
-    // Draw the marker, so that the pin falls down on (vx, vy)
-    auto marker = m_res->Start();
-    auto mw = marker.spec().width;
-    auto mh = marker.spec().height;
-    Overlay(ib, marker, vx - mw / 2, vy - mh);
-
-    auto last = m_gpx->Last();
-    ToViewPortCoordinates(ib, last.Latitude, last.Longitude, vx, vy);
-    // Draw the marker, so that the pin falls down on (vx, vy)
-    // XXX: assume the finish marker is upside down
-    marker = m_res->Finish();
-    mw = marker.spec().width;
-    Overlay(ib, marker, vx - mw / 2, vy);
+    for (const auto &marker : m_markers) {
+        ToViewPortCoordinates(ib, marker.Latitude, marker.Longitude, vx, vy);
+        auto &img = *marker.Image;
+        Overlay(ib, img, vx - marker.x, vy - marker.y);
+    }
 }
 
 // TODO: optimize this, do not scan the entire list of items
