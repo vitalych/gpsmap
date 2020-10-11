@@ -104,6 +104,7 @@ struct EncodingParams {
     ResourcesPtr resources;
     gpsmap::GPXPtr gpx;
     gpsmap::Segment seg;
+    gpsmap::GPXPtr wholeTrack;
     int segmentSequenceId;
     int fileSequenceId;
     GeoCoords startMarker;
@@ -236,15 +237,17 @@ static void EncodeOneSegment(int unused, EncodingParams &p) {
     if (duration > 120) {
         // Don't cycle through short segments.
         // It's easier to do video synchronization with a precise map at all times.
-        zoomedMaps.push_back(
-            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 5, markers), 5));
-        zoomedMaps.push_back(
-            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 7, markers), 5));
-        zoomedMaps.push_back(
-            std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 11, markers), 5));
+        MapImageGenerator::Params p1 = {p.wholeTrack, fs.geoTracker, p.tiles, p.resources, 5, markers};
+        MapImageGenerator::Params p2 = {p.wholeTrack, fs.geoTracker, p.tiles, p.resources, 7, markers};
+        MapImageGenerator::Params p3 = {p.wholeTrack, fs.geoTracker, p.tiles, p.resources, 11, markers};
+
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p1), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p2), 5));
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p3), 5));
     }
-    zoomedMaps.push_back(
-        std::make_pair(MapImageGenerator::Create(p.gpx, fs.geoTracker, p.tiles, p.resources, 16, markers), 60));
+
+    MapImageGenerator::Params p4 = {p.wholeTrack, fs.geoTracker, p.tiles, p.resources, 16, markers};
+    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p4), 60));
     largestZoomLevelIndex = zoomedMaps.size() - 1;
 
     std::stringstream videoFileName;
@@ -319,6 +322,7 @@ int main(int argc, char **argv) {
 
         double initialDistance = 0.0;
         std::vector<GPXPtr> gpxs;
+        auto wholeTrack = gpsmap::GPX::Create();
 
         for (auto f : args.InputGPXPaths) {
             auto gpx = gpsmap::GPX::Create();
@@ -326,9 +330,13 @@ int main(int argc, char **argv) {
             gpx->SetInitialDistance(initialDistance);
             gpx->LoadFromFile(f);
             gpx->CreateSegments();
+
+            wholeTrack->LoadFromFile(f);
             initialDistance = gpx->Last().TotalDistance;
             gpxs.push_back(gpx);
         }
+
+        wholeTrack->CreateSegments();
 
         auto firstItem = (*gpxs.begin())->First();
         auto lastItem = (*gpxs.rbegin())->Last();
@@ -338,6 +346,7 @@ int main(int argc, char **argv) {
             int i = 0;
             for (const auto &seg : gpx->GetSegments()) {
                 EncodingParams p;
+                p.wholeTrack = wholeTrack;
                 p.gpx = gpx;
                 p.seg = seg;
                 p.tiles = tiles;
