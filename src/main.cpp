@@ -361,7 +361,6 @@ int main(int argc, char **argv) {
                 tasks.push(tp->push(EncodeOneSegment, p));
                 ++i;
             }
-            initialDistance = gpx->Last().TotalDistance;
             ++j;
         }
     }

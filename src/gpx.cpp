@@ -130,6 +130,8 @@ void GPX::LoadFromFile(const std::string &path) {
     pt::ptree tree;
     pt::read_xml(path, tree);
 
+    bool first = true;
+
     BOOST_FOREACH (pt::ptree::value_type &trkseg, tree.get_child("gpx.trk")) {
         BOOST_FOREACH (pt::ptree::value_type &trkpt, trkseg.second) {
             TrackItem item;
@@ -149,6 +151,8 @@ void GPX::LoadFromFile(const std::string &path) {
             item.DistanceDelta = 0.0;
             item.TotalDistance = 0.0;
             item.Bearing = 0.0;
+            item.IsTrackStart = first;
+            first = false;
 
             m_trackItems.push_back(item);
         }

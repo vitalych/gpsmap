@@ -173,7 +173,7 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
     for (const auto &item : m_gpx->GetItems()) {
         int x, y;
         ToGridCoordinates(item.Latitude, item.Longitude, x, y);
-        if (hasPrev) {
+        if (hasPrev && !item.IsTrackStart) {
             ImageBufAlgo::render_line(ib, prevx, prevy, x, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
             ImageBufAlgo::render_line(ib, prevx, prevy, x + 1, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
         }

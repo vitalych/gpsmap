@@ -48,6 +48,7 @@ struct TrackItem {
     double DistanceDelta;
     double TotalDistance;
     double Bearing;
+    bool IsTrackStart;
 
     bool operator<(const TrackItem &item) {
         return Timestamp < item.Timestamp;
