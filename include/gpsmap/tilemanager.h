@@ -99,6 +99,13 @@ public:
     static TilePtr Create(const TileDesc &desc);
     void Load(const std::string &filePath);
     void Fail();
+    bool Failed() {
+        return m_state == FAILED;
+    }
+
+    const std::string &FilePath() const {
+        return m_filePath;
+    }
 
     bool WaitUntilDownloaded();
 };

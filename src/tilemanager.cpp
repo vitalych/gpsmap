@@ -108,12 +108,16 @@ void Tile::Load(const std::string &filePath) {
         m_filePath = filePath;
         m_image = OIIO::ImageBuf(m_filePath);
 
-        int channelorder[] = {0, 1, 2, -1 /*use a float value*/};
-        float channelvalues[] = {0 /*ignore*/, 0 /*ignore*/, 0 /*ignore*/, 1.0};
-        std::string channelnames[] = {"", "", "", "A"};
-        m_image = OIIO::ImageBufAlgo::channels(m_image, 4, channelorder, channelvalues, channelnames);
-
-        m_state = LOADED;
+        if (m_image.read()) {
+            int channelorder[] = {0, 1, 2, -1 /*use a float value*/};
+            float channelvalues[] = {0 /*ignore*/, 0 /*ignore*/, 0 /*ignore*/, 1.0};
+            std::string channelnames[] = {"", "", "", "A"};
+            m_image = OIIO::ImageBufAlgo::channels(m_image, 4, channelorder, channelvalues, channelnames);
+            m_state = LOADED;
+        } else {
+            std::cerr << "Could not load " << m_filePath << "\n";
+            m_state = FAILED;
+        }
     }
     m_cv.notify_all();
 }
@@ -199,7 +203,7 @@ bool TileManager::DownloadTile(TilePtr &tilep) const {
     }
 
     tilep->Load(fp.str());
-    return true;
+    return !tilep->Failed();
 }
 
 TilePtr TileManager::GetTile(int x, int y, int zoom) {
@@ -224,9 +228,14 @@ TilePtr TileManager::GetTile(int x, int y, int zoom) {
         ret->WaitUntilDownloaded();
     } else {
         if (!DownloadTile(ret)) {
+            std::cerr << "Could not download " << ret->FilePath() << "\n";
             ret->Fail();
             return nullptr;
         }
+    }
+
+    if (ret->Failed()) {
+        return nullptr;
     }
 
     return ret;
