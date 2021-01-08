@@ -164,7 +164,7 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
     ret->enc = c;
 
     std::stringstream codecParams;
-    codecParams << "pools=1:numa-pools=1";
+    codecParams << "pools=1:numa-pools=1:log-level=1";
     auto cp = codecParams.str();
 
     switch (ret->codec->type) {
@@ -412,6 +412,7 @@ void VideoEncoder::EncodeLoop() {
 }
 
 VideoEncoderPtr VideoEncoder::Create(const std::string &filePath, int w, int h, int fps, FrameGeneratorCallback cb) {
+    av_log_set_level(AV_LOG_QUIET);
     auto ret = VideoEncoderPtr(new VideoEncoder(filePath, w, h, fps, cb));
     if (!ret->Initialize()) {
         return nullptr;
