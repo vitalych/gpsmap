@@ -137,9 +137,23 @@ void GPX::LoadFromFile(const std::string &path) {
             TrackItem item;
             auto lat = trkpt.second.get_child("<xmlattr>.lat").get_value("");
             auto lon = trkpt.second.get_child("<xmlattr>.lon").get_value("");
-            auto speed = trkpt.second.get_child("speed").get_value("");
+
             auto elevation = trkpt.second.get_child("ele").get_value("");
             auto time = trkpt.second.get_child("time").get_value("");
+
+            std::string speed;
+            auto _speed = trkpt.second.get_child_optional("speed");
+            if (_speed) {
+                speed = (*_speed).get_value("");
+            } else {
+                _speed = trkpt.second.get_child_optional("extensions.gpxtpx:TrackPointExtension.gpxtpx:speed");
+                if (_speed) {
+                    speed = (*_speed).get_value("");
+                } else {
+                    std::cerr << "Could not get speed\n";
+                    speed = "0.0";
+                }
+            }
 
             item.Speed = strtod(speed.c_str(), nullptr);
             item.Latitude = strtod(lat.c_str(), nullptr);
