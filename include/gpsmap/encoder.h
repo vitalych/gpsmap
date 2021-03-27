@@ -75,7 +75,7 @@ private:
     std::string m_filePath;
     int m_width;
     int m_height;
-    int m_fps;
+    double m_fps;
 
     AVOutputFormat *m_fmt;
     AVFormatContext *m_oc;
@@ -85,7 +85,7 @@ private:
 
     FrameGeneratorCallback m_generateFrame;
 
-    VideoEncoder(const std::string &filePath, int w, int h, int fps, FrameGeneratorCallback cb);
+    VideoEncoder(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb);
     OutputStreamPtr AddStream(enum AVCodecID codec_id);
     bool OpenVideo(OutputStream *ost, AVDictionary *opt_arg);
     AVFrame *GetVideoFrame();
@@ -97,7 +97,7 @@ private:
 public:
     ~VideoEncoder();
 
-    static VideoEncoderPtr Create(const std::string &filePath, int w, int h, int fps, FrameGeneratorCallback cb);
+    static VideoEncoderPtr Create(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb);
     void EncodeLoop();
     void Finalize();
 
@@ -109,7 +109,7 @@ public:
         return m_width;
     }
 
-    int GetFPS() const {
+    double GetFPS() const {
         return m_fps;
     }
 };

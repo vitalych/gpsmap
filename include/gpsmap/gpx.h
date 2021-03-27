@@ -38,21 +38,29 @@ static inline double to_deg(double rad) {
 
 namespace gpsmap {
 struct TrackItem {
-    time_t Timestamp;
     std::string OriginalTimestamp;
-    double Latitude;
-    double Longitude;
-    double Speed;
-    double Elevation;
-    float Grade;
-    double DistanceDelta;
-    double TotalDistance;
-    double Bearing;
-    bool IsTrackStart;
+    double Timestamp = 0.0;
+    double Latitude = 0.0;
+    double Longitude = 0.0;
+    double Speed = 0.0;
+    double Elevation = 0.0;
+    double DistanceDelta = 0.0;
+    double TotalDistance = 0.0;
+    double Bearing = 0.0;
+    bool IsTrackStart = false;
+    bool IsSegmentStart = false;
+
+    // TODO: move this out of here
+    unsigned MapIndex = 0;
 
     bool operator<(const TrackItem &item) {
         return Timestamp < item.Timestamp;
     }
+};
+
+struct GPXInfo {
+    time_t Start;
+    double Duration;
 };
 
 std::ostream &operator<<(std::ostream &os, TrackItem const &m);
@@ -60,25 +68,86 @@ std::ostream &operator<<(std::ostream &os, TrackItem const &m);
 class GPX;
 using GPXPtr = std::shared_ptr<GPX>;
 
-using Segment = std::pair<int, int>;
-using Segments = std::vector<Segment>;
+class GPXSegment;
+using GPXSegmentPtr = std::shared_ptr<GPXSegment>;
+using GPXSegments = std::vector<GPXSegmentPtr>;
+using TrackItems = std::vector<TrackItem>;
 
-class GPX {
+class GPXSegment {
 private:
-    GPX() {
+    double m_initialDistance;
+    TrackItems m_items;
+
+    GPXSegment(double initialDistance) : m_initialDistance(initialDistance) {
     }
 
-    std::vector<TrackItem> m_trackItems;
-    Segments m_segments;
-    double m_initialDistance;
-
 public:
-    void LoadFromFile(const std::string &path);
+    static GPXSegmentPtr Create(double initialDistance) {
+        return GPXSegmentPtr(new GPXSegment(initialDistance));
+    }
 
-    void CreateSegments();
+    void AddItem(const TrackItem &item) {
+        assert(!m_items.size() || (m_items.back().Timestamp <= item.Timestamp));
+        m_items.push_back(item);
+    }
 
-    const Segments &GetSegments() const {
-        return m_segments;
+    void UpdateDistances();
+    void UpdateBearing();
+
+    void SplitIdleSegments(GPXSegments &segments) const;
+
+    GPXSegmentPtr Interpolate(unsigned frequency) const;
+
+    const TrackItem &operator[](std::size_t idx) const {
+        assert(idx < m_items.size());
+        return m_items[idx];
+    }
+
+    GPXSegmentPtr Extract(unsigned start, unsigned end) const {
+        if (start >= m_items.size() || end > m_items.size() || end < start) {
+            return nullptr;
+        }
+
+        auto ret = GPXSegment::Create(0);
+        ret->m_items.insert(ret->m_items.end(), m_items.begin() + start, m_items.begin() + end);
+        assert(ret->m_items.size() == end - start);
+        return ret;
+    }
+
+    const TrackItems::const_iterator begin() const {
+        return m_items.begin();
+    }
+
+    const TrackItems::const_iterator end() const {
+        return m_items.end();
+    }
+
+    const TrackItems::iterator begin() {
+        return m_items.begin();
+    }
+
+    const TrackItems::iterator end() {
+        return m_items.end();
+    }
+
+    const TrackItem &front() const {
+        return m_items.front();
+    }
+
+    const TrackItem &back() const {
+        return m_items.back();
+    }
+
+    TrackItem &front() {
+        return m_items.front();
+    }
+
+    TrackItem &back() {
+        return m_items.back();
+    }
+
+    const size_t size() const {
+        return m_items.size();
     }
 
     bool GetClosestItem(time_t timestamp, size_t &nextItem, TrackItem &item);
@@ -86,26 +155,50 @@ public:
     bool GetItem(size_t index, TrackItem &item);
 
     const std::vector<TrackItem> &GetItems() const {
-        return m_trackItems;
+        return m_items;
     }
 
-    const TrackItem &First() const {
-        return m_trackItems.front();
+    bool GetInfo(GPXInfo &info) const;
+};
+
+GPXSegmentPtr MergeSegments(const GPXSegments &segments);
+
+class GPX {
+private:
+    GPXSegments m_trackSegments;
+    double m_initialDistance;
+
+    GPX() {
     }
 
-    const TrackItem &Last() const {
-        return m_trackItems.back();
-    }
+public:
+    bool LoadFromFile(const std::string &path, unsigned interpolationFrequency);
 
     void SetInitialDistance(double distance) {
         m_initialDistance = distance;
     }
 
+    const GPXSegmentPtr back() const {
+        return m_trackSegments.back();
+    }
+
+    const GPXSegments::const_iterator begin() const {
+        return m_trackSegments.begin();
+    }
+
+    const GPXSegments::const_iterator end() const {
+        return m_trackSegments.end();
+    }
+
+    const GPXSegments &GetTrackSegments() const {
+        return m_trackSegments;
+    }
     static GPXPtr Create();
 };
 
 time_t parse_time(const std::string &iso);
 std::string time_to_str(time_t t);
+
 } // namespace gpsmap
 
 #endif

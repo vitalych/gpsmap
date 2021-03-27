@@ -85,10 +85,10 @@ bool MapImageGenerator::LoadGrid(TilePtr tile) {
     return true;
 }
 
-bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
+bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, const FrameState &state, int frameIndex, double fps) {
     int px, py;
-    auto lat = m_tracker->Latitude();
-    auto lon = m_tracker->Longitude();
+    auto lat = state.Latitude;
+    auto lon = state.Longitude;
 
     auto tile = m_tiles->GetTile(lat, lon, px, py, m_zoom);
     if (!tile) {
@@ -120,7 +120,7 @@ bool MapImageGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     m_viewportx = px - tw / 2;
     m_viewporty = py - th / 2;
 
-    DrawMarkers(ib);
+    DrawMarkers(ib, state.Bearing);
 
     return true;
 }
@@ -149,9 +149,8 @@ bool MapImageGenerator::DrawArrow(ImageBuf &ib, double bearing) {
     return Overlay(ib, arrow, px - w, py - h);
 }
 
-void MapImageGenerator::DrawMarkers(ImageBuf &ib) {
+void MapImageGenerator::DrawMarkers(ImageBuf &ib, double bearing) {
     if (m_zoom >= 11) {
-        auto bearing = m_tracker->Bearing();
         DrawArrow(ib, bearing);
     } else {
         DrawDot(ib);
@@ -173,7 +172,7 @@ void MapImageGenerator::DrawTrack(ImageBuf &ib) {
     for (const auto &item : m_gpx->GetItems()) {
         int x, y;
         ToGridCoordinates(item.Latitude, item.Longitude, x, y);
-        if (hasPrev && !item.IsTrackStart) {
+        if (hasPrev && !item.IsSegmentStart) {
             ImageBufAlgo::render_line(ib, prevx, prevy, x, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
             ImageBufAlgo::render_line(ib, prevx, prevy, x + 1, y, {0.0f, 0.0f, 1.0f}, false, {}, 1);
         }
@@ -216,83 +215,6 @@ void MapImageGenerator::ToGridCoordinates(double lat, double lon, int &x, int &y
     y = py;
 }
 
-double angle_distance(double a1, double a2) {
-    double result;
-    auto phi = fmod(abs(a2 - a1), 360);
-    auto sign = 1;
-    if (!(((a1 - a2) >= 0 && (a1 - a2) <= 180) || ((a1 - a2) <= -180 && (a1 - a2) >= -360))) {
-        sign = -1;
-    }
-    if (phi > 180) {
-        result = 360 - phi;
-    } else {
-        result = phi;
-    }
-    return result * sign;
-}
-
-bool GeoTracker::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
-    TrackItem firstItem;
-    if (!m_gpx->GetItem(m_firstItemIdx, firstItem)) {
-        // Nothing more to render
-        return false;
-    }
-
-    auto second = (double) frameIndex / (double) fps;
-    auto date = (double) firstItem.Timestamp + second;
-
-    TrackItem item;
-    size_t prev_item = m_nextItemIdx;
-
-    if (prev_item >= m_lastItemIdx) {
-        return false;
-    }
-
-    if (!m_gpx->GetClosestItem(date, m_nextItemIdx, item)) {
-        // Nothing more to render
-        return false;
-    }
-
-    // Interpolate speed and position
-    auto speedInc = item.Speed;
-    auto lat = item.Latitude;
-    auto lon = item.Longitude;
-    auto distInc = item.TotalDistance;
-    auto bearingInc = item.Bearing;
-
-    if (prev_item == m_nextItemIdx) {
-        TrackItem next_item;
-        if (m_gpx->GetItem(m_nextItemIdx + 1, next_item)) {
-            auto timeDiff = next_item.Timestamp - item.Timestamp;
-            auto speedDiff = next_item.Speed - item.Speed;
-            auto speedIncrement = speedDiff / timeDiff * (date - item.Timestamp);
-            speedInc += speedIncrement;
-
-            auto distDiff = next_item.TotalDistance - item.TotalDistance;
-            auto distIncrement = distDiff / timeDiff * (date - item.Timestamp);
-            distInc += distIncrement;
-
-            auto bearingDiff = angle_distance(next_item.Bearing, item.Bearing);
-            auto bearingIncrement = bearingDiff / timeDiff * (date - item.Timestamp);
-            bearingInc += bearingIncrement;
-
-            lon += (next_item.Longitude - item.Longitude) / timeDiff * (date - item.Timestamp);
-            lat += (next_item.Latitude - item.Latitude) / timeDiff * (date - item.Timestamp);
-        }
-    }
-
-    m_lon = lon;
-    m_lat = lat;
-    m_dist = distInc;
-    m_speed = speedInc;
-    m_grade = item.Grade;
-    m_elevation = item.Elevation;
-    m_date = date;
-    m_bearing = bearingInc;
-
-    return true;
-}
-
 static std::string PrintTime(time_t ts) {
     char buff[32];
     struct tm res;
@@ -300,18 +222,18 @@ static std::string PrintTime(time_t ts) {
     return buff;
 }
 
-bool LabelGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
+bool LabelGenerator::Generate(OIIO::ImageBuf &ib, const FrameState &state, int frameIndex, double fps) {
     int width = ib.spec().width;
     int height = ib.spec().height;
 
     std::stringstream lbl1;
-    lbl1 << (int) (m_geo->Speed() * 3600 / 1000) << " km/h";
-    lbl1 << "  " << (int) m_geo->Elevation() << " m";
-    lbl1 << "  " << std::fixed << std::setprecision(2) << m_geo->Distance() / 1000.0 << " km";
+    lbl1 << (int) (state.Speed * 3600 / 1000) << " km/h";
+    lbl1 << "  " << (int) state.Elevation << " m";
+    lbl1 << "  " << std::fixed << std::setprecision(2) << state.TotalDistance / 1000.0 << " km";
     auto lbl1Str = lbl1.str();
 
     std::stringstream lbl2;
-    lbl2 << PrintTime(m_geo->Date());
+    lbl2 << PrintTime((time_t) state.Timestamp);
     auto lbl2Str = lbl2.str();
 
     if (m_lbl2 != lbl2.str()) {
@@ -362,7 +284,12 @@ bool LabelGenerator::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
     return true;
 }
 
-bool MapSwitcher::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
+bool MapSwitcher::Generate(OIIO::ImageBuf &ib, const FrameState &state, int frameIndex, double fps) {
+    assert(state.MapIndex < m_maps.size());
+    return m_maps[state.MapIndex].first->Generate(ib, state, frameIndex, fps);
+}
+
+void MapSwitcher::ComputeState(FrameState &state, int frameIndex, double fps) {
     int second = frameIndex / fps;
 
     if (second != m_prevSecond) {
@@ -377,10 +304,12 @@ bool MapSwitcher::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
 
         // Let clients override the displayed map if needed
         if (m_maps.size() > 1) {
-            int overrideIndex = 0;
+            unsigned overrideIndex = 0;
             if (m_cb(second, overrideIndex)) {
-                if (overrideIndex < (int) m_maps.size()) {
+                if (overrideIndex < m_maps.size()) {
                     m_currentMapIndex = overrideIndex;
+                } else {
+                    m_currentMapIndex = m_maps.size() - 1;
                 }
             }
         }
@@ -388,7 +317,9 @@ bool MapSwitcher::Generate(OIIO::ImageBuf &ib, int frameIndex, int fps) {
         m_prevSecond = second;
     }
 
-    return m_maps[m_currentMapIndex].first->Generate(ib, frameIndex, fps);
+    assert(m_currentMapIndex < m_maps.size());
+
+    state.MapIndex = m_currentMapIndex;
 }
 
 } // namespace gpsmap

@@ -79,7 +79,7 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt) {
            pts_tb.c_str(), dts.c_str(), dts_tb.c_str(), duration.c_str(), duration_tb.c_str(), pkt->stream_index);
 }
 
-VideoEncoder::VideoEncoder(const std::string &filePath, int w, int h, int fps, FrameGeneratorCallback cb) {
+VideoEncoder::VideoEncoder(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb) {
     m_filePath = filePath;
     m_width = w;
     m_height = h;
@@ -179,8 +179,9 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
              * of which frame timestamps are represented. For fixed-fps content,
              * timebase should be 1/framerate and timestamp increments should be
              * identical to 1. */
-            ret->st->time_base = (AVRational){1, m_fps};
-            c->time_base = ret->st->time_base;
+            // ret->st->time_base =
+            c->time_base = (AVRational){1, (int) m_fps};
+            c->framerate = (AVRational){(int) m_fps, 1};
 
             // Doesn't work with x265
             // c->thread_count = 1;
@@ -411,7 +412,7 @@ void VideoEncoder::EncodeLoop() {
     }
 }
 
-VideoEncoderPtr VideoEncoder::Create(const std::string &filePath, int w, int h, int fps, FrameGeneratorCallback cb) {
+VideoEncoderPtr VideoEncoder::Create(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb) {
     av_log_set_level(AV_LOG_QUIET);
     auto ret = VideoEncoderPtr(new VideoEncoder(filePath, w, h, fps, cb));
     if (!ret->Initialize()) {
