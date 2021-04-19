@@ -38,12 +38,25 @@ std::ostream &operator<<(std::ostream &os, TrackItem const &m) {
 }
 
 time_t parse_time(const std::string &iso) {
-    std::stringstream ss(iso);
+    std::tm t = {};
+    int y, M, d, h, m;
+    float s;
+    sscanf(iso.c_str(), "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &s);
+
+    t.tm_year = y - 1900; // Year since 1900
+    t.tm_mon = M - 1;     // 0-11
+    t.tm_mday = d;        // 1-31
+    t.tm_hour = h;        // 0-23
+    t.tm_min = m;         // 0-59
+    t.tm_sec = (int) s;   // 0-61 (0-60 in C++11)
+
+    return std::mktime(&t) - timezone;
+    /*std::stringstream ss(iso);
     std::tm t = {};
     if (ss >> std::get_time(&t, "%Y-%m-%dT%H:%M:%SZ")) {
         return std::mktime(&t) - timezone;
     }
-    return 0;
+    return 0;*/
 }
 
 std::string time_to_str(time_t t) {

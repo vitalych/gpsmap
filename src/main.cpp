@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <atomic>
+#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -76,28 +77,7 @@ static bool ParseCommandLine(int argc, char **argv, Arguments &args) {
         }
     }
 
-    return args.InputGPXPaths.size() > 0 && args.OutputDirectory.size() > 0 && args.InputGPXPaths.size() > 0 &&
-           args.ResourceDir.size() > 0;
-}
-
-static inline uint32_t rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    return (a << 24) | (r << 16) | (g << 8) | b;
-}
-
-// TODO: use imagebuf for that
-void ClearFrame(VideoEncoder &encoder, OutputStream &os) {
-    int width = encoder.Width();
-    int height = encoder.Height();
-
-    auto pict = os.tmp_frame;
-    int ls = pict->linesize[0] / sizeof(uint32_t);
-    uint32_t *pixels = (uint32_t *) pict->data[0];
-
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            pixels[y * ls + x] = rgba(0, 0, 0, 0xff);
-        }
-    }
+    return args.InputGPXPaths.size() > 0 && args.OutputDirectory.size() > 0 && args.ResourceDir.size() > 0;
 }
 
 struct GeoCoords {
@@ -117,6 +97,17 @@ struct ResourceBundle {
     double fps;
 };
 
+static std::string StripSpecialCharacters(const std::string &str) {
+    std::stringstream ss;
+    for (auto c : str) {
+        if (c == ':') {
+            c = '-';
+        }
+        ss << c;
+    }
+    return ss.str();
+}
+
 // Describes a video file to encode.
 struct EncodingParams {
     gpsmap::GPXSegmentPtr seg;
@@ -125,6 +116,19 @@ struct EncodingParams {
     int fileSequenceId;
     int startFrame;
     int frameCount;
+
+    std::string getFileName() const {
+        assert(seg);
+        assert((size_t) startFrame < seg->size());
+        auto &first = *(seg->begin() + startFrame);
+        auto t = time_to_str(first.Timestamp);
+
+        std::stringstream videoFileName;
+        videoFileName << std::setw(3) << std::setfill('0') << fileSequenceId << "-" << std::setw(3) << std::setfill('0')
+                      << segmentSequenceId << " - " << StripSpecialCharacters(t) << ".mp4";
+
+        return videoFileName.str();
+    }
 };
 
 struct EncodingFrameParams {
@@ -149,7 +153,7 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams 
 
     ++g_processedFrames;
 
-    ClearFrame(encoder, os);
+    encoder.ClearFrame(os);
 
     int width = encoder.Width();
     int height = encoder.Height();
@@ -170,17 +174,6 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams 
     }
 
     return true;
-}
-
-static std::string StripSpecialCharacters(const std::string &str) {
-    std::stringstream ss;
-    for (auto c : str) {
-        if (c == ':') {
-            c = '-';
-        }
-        ss << c;
-    }
-    return ss.str();
 }
 
 static std::vector<std::string> s_filesWithErrors;
@@ -271,12 +264,8 @@ static void EncodeOneSegment(int unused, ResourceBundle &r, EncodingParams &p) {
     auto &first = *(fs.params.seg->begin() + p.startFrame);
     auto t = time_to_str(first.Timestamp);
 
-    std::stringstream videoFileName;
-    videoFileName << std::setw(3) << std::setfill('0') << p.fileSequenceId << "-" << std::setw(3) << std::setfill('0')
-                  << p.segmentSequenceId << " - " << StripSpecialCharacters(t) << ".mkv";
-
     boost::filesystem::path videoPath(r.OutputDirectory);
-    videoPath.append(videoFileName.str());
+    videoPath.append(p.getFileName());
 
     std::cout << "Encoding to " << videoPath << std::endl;
 
@@ -290,69 +279,62 @@ static void EncodeOneSegment(int unused, ResourceBundle &r, EncodingParams &p) {
     encoder->Finalize();
 }
 
-static bool LoadVideoInfo(const std::vector<std::string> &inputVideoPaths, std::vector<VideoInfo> &videoInfo) {
-    for (const auto &it : inputVideoPaths) {
-        VideoInfo info;
-        if (!GetVideoInfo(it, info)) {
-            std::cerr << "Could not get video info for " << it << "\n";
-            return false;
-        }
-        std::cout << it << ": fileId=" << info.FileId << " fileSeq=" << info.FileSequence
-                  << " frameCount=" << info.FrameCount << " frameRate=" << info.FrameRate
-                  << " duration=" << (double) info.FrameCount / info.FrameRate << "\n";
-        videoInfo.push_back(info);
+static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, task_set &tasks, thread_pool *tp,
+                                                        ResourceBundle &resources, GPXSegments &segments) {
+    std::vector<VideoInfo> videoInfo;
+    if (!LoadVideoInfo(args.InputVideoPaths, videoInfo)) {
+        return false;
     }
-    return true;
-}
 
-static bool LoadVideoGpx(const std::vector<std::string> &inputVideoGpxPaths) {
-    for (const auto &f : inputVideoGpxPaths) {
-        std::cout << "Loading " << f << std::endl;
-        auto gpx = gpsmap::GPX::Create();
-        gpx->LoadFromFile(f, 0);
-
-        for (auto segment : gpx->GetTrackSegments()) {
-            GPXInfo info;
-            if (!segment->GetInfo(info)) {
-                std::cerr << "Could not get info for " << f << "\n";
-                return false;
-            }
-
-            std::cout << f << ": start=" << time_to_str(info.Start) << " duration=" << info.Duration << "\n";
-        }
+    std::vector<GPXInfo> gpxInfo;
+    if (!LoadVideoGpx(args.InputVideoGpxPaths, gpxInfo)) {
+        return false;
     }
-    return true;
-}
 
-static bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &segments, unsigned fps,
-                         bool splitIdleParts) {
-    double initialDistance = 0.0;
+    if (videoInfo.size() != gpxInfo.size()) {
+        std::cerr << "Videos and corresponding gpx files must match\n";
+        return false;
+    }
 
-    for (auto f : inputGPXPaths) {
-        auto gpx = gpsmap::GPX::Create();
-        std::cout << "Loading " << f << std::endl;
-        gpx->SetInitialDistance(initialDistance);
-        gpx->LoadFromFile(f, fps);
+    std::vector<VideoInfo> segmentInfo;
+    if (!ComputeMapSegmentsForGpxVideos(videoInfo, gpxInfo, segmentInfo)) {
+        std::cerr << "Could not compute segments\n";
+        return false;
+    }
 
-        for (auto seg : *gpx) {
-            if (splitIdleParts) {
-                GPXSegments idleSegments;
-                seg->SplitIdleSegments(idleSegments);
-                for (auto idle : idleSegments) {
-                    segments.push_back(idle);
-                }
-            } else {
-                segments.push_back(seg);
-            }
+    // Now we have start date and number of frames in original video.
+    // Match the ranges from the extern gpx data.
+    // It's possible to have gaps: no external data for (part of) a given range.
+    std::vector<SegmentRange> ranges;
+    for (const auto &vi : segmentInfo) {
+        SegmentRange range;
+        if (!GetSegmentRange(segments, vi.Start, vi.Duration, range)) {
+            std::cerr << "Could not find matching external gpx data for file id " << vi.FileId << "\n";
+            continue;
         }
 
-        initialDistance = gpx->back()->back().TotalDistance;
+        ranges.push_back(range);
+    }
+
+    // Generate actual segments
+    auto i = 0;
+    for (const auto &range : ranges) {
+        EncodingParams p;
+        p.fileSequenceId = 0;
+        p.segmentSequenceId = i;
+        p.startFrame = range.startIndex;
+        p.frameCount = range.endIndex - range.startIndex + 1;
+        p.seg = range.segment;
+
+        tasks.push(tp->push(EncodeOneSegment, resources, p));
+        ++i;
     }
 
     return true;
 }
 
-static void OneVideoPerSegment(task_set &tasks, thread_pool *tp, ResourceBundle &resources, GPXSegments &segments) {
+[[maybe_unused]] static void OneVideoPerSegment(task_set &tasks, thread_pool *tp, ResourceBundle &resources,
+                                                GPXSegments &segments) {
     int i = 0;
     for (auto segment : segments) {
         EncodingParams p;
@@ -367,8 +349,8 @@ static void OneVideoPerSegment(task_set &tasks, thread_pool *tp, ResourceBundle 
     }
 }
 
-static void OneVideoPerSegmentParallel(task_set &tasks, thread_pool *tp, ResourceBundle &resources,
-                                       GPXSegments &segments) {
+[[maybe_unused]] static void OneVideoPerSegmentParallel(task_set &tasks, thread_pool *tp, ResourceBundle &resources,
+                                                        GPXSegments &segments) {
     auto cores = tp->size();
 
     // Compute number of frames we have
@@ -386,6 +368,8 @@ static void OneVideoPerSegmentParallel(task_set &tasks, thread_pool *tp, Resourc
         auto startframe = 0l;
         auto chunk = 0l;
 
+        std::vector<std::string> filesToCombine;
+
         while (segframes > 0) {
             auto framecount = avg >= segframes ? segframes : avg;
 
@@ -395,12 +379,30 @@ static void OneVideoPerSegmentParallel(task_set &tasks, thread_pool *tp, Resourc
             p.startFrame = startframe;
             p.frameCount = framecount;
             p.seg = segment;
+            filesToCombine.push_back(p.getFileName());
             tasks.push(tp->push(EncodeOneSegment, resources, p));
 
             startframe += framecount;
             segframes -= framecount;
             ++chunk;
         }
+
+        boost::filesystem::path mergeListPath(resources.OutputDirectory);
+        std::stringstream ss;
+        ss << filesToCombine[0] << ".lst";
+        mergeListPath.append(ss.str());
+
+        std::ofstream ofs(mergeListPath.string());
+        if (ofs.fail()) {
+            std::cerr << "Could not open " << mergeListPath << "\n";
+            return;
+        }
+
+        for (auto fn : filesToCombine) {
+            ofs << "file '" << fn << "'\n";
+        }
+
+        ofs.close();
 
         ++i;
     }
@@ -430,16 +432,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    std::vector<VideoInfo> videoInfo;
-    if (!LoadVideoInfo(args.InputVideoPaths, videoInfo)) {
-        return -1;
-    }
-
-    std::vector<GPX> videoGpx;
-    if (!LoadVideoGpx(args.InputVideoGpxPaths)) {
-        return -1;
-    }
-
     auto resources = Resources::Create(args.ResourceDir);
     if (!resources) {
         return -1;
@@ -453,7 +445,7 @@ int main(int argc, char **argv) {
 
     std::sort(args.InputGPXPaths.begin(), args.InputGPXPaths.end());
     GPXSegments segments;
-    if (!LoadSegments(args.InputGPXPaths, segments, g_fps, true)) {
+    if (!LoadSegments(args.InputGPXPaths, segments, g_fps, false)) {
         std::cerr << "Could not load segments\n";
         return -1;
     }
@@ -491,7 +483,9 @@ int main(int argc, char **argv) {
 
     task_set tasks(tp);
 
+    // OneVideoPerSegment(tasks, tp, resourcesBundle, segments);
     OneVideoPerSegmentParallel(tasks, tp, resourcesBundle, segments);
+    // MatchExternalGPXWithEmbeddedVideoTimestamps(args, tasks, tp, resourcesBundle, segments);
 
     tasks.wait(true);
     s_terminated = true;

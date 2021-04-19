@@ -180,8 +180,13 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
              * timebase should be 1/framerate and timestamp increments should be
              * identical to 1. */
             // ret->st->time_base =
-            c->time_base = (AVRational){1, (int) m_fps};
-            c->framerate = (AVRational){(int) m_fps, 1};
+            if ((int) (m_fps * 100.0) == 5994) {
+                c->time_base = (AVRational){1001, 60000};
+                c->framerate = (AVRational){60000, 1001};
+            } else {
+                c->time_base = (AVRational){1, (int) m_fps};
+                c->framerate = (AVRational){(int) m_fps, 1};
+            }
 
             // Doesn't work with x265
             // c->thread_count = 1;
@@ -409,6 +414,22 @@ void VideoEncoder::EncodeLoop() {
     bool encode_video = true;
     while (encode_video) {
         encode_video = !WriteVideoFrame();
+    }
+}
+
+// TODO: use imagebuf for that
+void VideoEncoder::ClearFrame(OutputStream &os) {
+    int width = Width();
+    int height = Height();
+
+    auto pict = os.tmp_frame;
+    int ls = pict->linesize[0] / sizeof(uint32_t);
+    uint32_t *pixels = (uint32_t *) pict->data[0];
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            pixels[y * ls + x] = rgba(0, 0, 0, 0xff);
+        }
     }
 }
 
