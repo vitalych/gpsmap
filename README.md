@@ -24,7 +24,7 @@ Assuming you have an Ubuntu installation, run the following commands:
 
     $ sudo apt-get update
     $ sudo apt-get install cmake clang libopenimageio-dev libcurl4-openssl-dev libboost-filesystem-dev libavcodec-dev \
-        libavformat-dev libswscale-dev
+        libavformat-dev libswscale-dev libgtest-dev
     $ git clone https://github.com/vitalych/gpsmap
     $ mkdir gpsmap-build && cd gpsmap-build
     $ cmake ../gpsmap

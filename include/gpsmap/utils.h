@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 #include <string>
+#include <vector>
+#include "gpx.h"
 
 #ifndef _GPSMAP_UTILS_H_
 #define _GPSMAP_UTILS_H_
@@ -26,13 +28,41 @@
 namespace gpsmap {
 
 struct VideoInfo {
+    std::string Path;
     int FileId = 0;
     int FileSequence = 0;
     float FrameRate = 0.0f;
     unsigned FrameCount = 0;
+
+    // These come from the GPX data and may not fully match
+    // the actual frame count in terms of duration.
+    time_t Start = 0;
+    double Duration = 0.0f;
+};
+
+struct SegmentRange {
+    GPXSegmentPtr segment;
+    unsigned startIndex;
+    unsigned endIndex;
 };
 
 bool GetVideoInfo(const std::string &filePath, VideoInfo &info);
+
+bool LoadVideoInfo(const std::string &inputVideoPath, VideoInfo &videoInfo);
+
+bool LoadVideoInfo(const std::vector<std::string> &inputVideoPaths, std::vector<VideoInfo> &videoInfo);
+
+bool LoadVideoGpx(const std::vector<std::string> &inputVideoGpxPaths, std::vector<GPXInfo> &gpxInfo);
+
+bool ComputeMapSegmentsForGpxVideos(const std::vector<VideoInfo> &videoInfo, const std::vector<GPXInfo> &gpxInfo,
+                                    std::vector<VideoInfo> &segments);
+
+bool ComputeMapSegmentsForGpxVideos(const std::vector<VideoInfo> &videoInfo, std::vector<VideoInfo> &segments);
+
+bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &segments, unsigned fps,
+                  bool splitIdleParts);
+
+bool GetSegmentRange(GPXSegments &segments, time_t start, double duration, SegmentRange &range);
 
 } // namespace gpsmap
 

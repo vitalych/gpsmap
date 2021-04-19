@@ -18,17 +18,50 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_executable(
-    gps
+add_library(
+    gpsmap
     encoder.cpp
-    main.cpp
     gpx.cpp
     tilemanager.cpp
     mapgen.cpp
     resources.cpp
     utils.cpp
+    json.cpp
 )
-target_link_libraries(gps avcodec avutil avformat swscale swresample OpenImageIO boost_system boost_filesystem curl m pthread)
+
+add_executable(
+    gps
+    main.cpp
+)
+
+TARGET_LINK_LIBRARIES(gps gpsmap)
+
+add_executable(
+    gpstest
+    test.cpp
+)
+
+TARGET_LINK_LIBRARIES(gpstest gpsmap)
+
+add_executable(
+    gpstool
+    tool.cpp
+)
+
+add_executable(
+    gpstimecode
+    timecode.cpp
+)
+
+TARGET_LINK_LIBRARIES(gpstool gpsmap)
+TARGET_LINK_LIBRARIES(gpstimecode gpsmap)
+
+SET(LIBS avcodec avutil avformat swscale swresample OpenImageIO boost_system boost_filesystem curl m pthread)
+
+target_link_libraries(gps ${LIBS})
+target_link_libraries(gpstool ${LIBS})
+target_link_libraries(gpstimecode ${LIBS})
+target_link_libraries(gpstest gtest ${LIBS})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")

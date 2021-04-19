@@ -22,6 +22,7 @@
 
 #define GPX_H
 
+#include <assert.h>
 #include <math.h>
 #include <memory>
 #include <ostream>
