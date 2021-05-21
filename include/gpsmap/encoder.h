@@ -35,6 +35,7 @@ struct AVStream;
 struct AVCodecContext;
 struct AVFrame;
 #include <libavcodec/avcodec.h>
+#include <libavutil/rational.h>
 }
 
 namespace gpsmap {
@@ -75,7 +76,7 @@ private:
     std::string m_filePath;
     int m_width;
     int m_height;
-    double m_fps;
+    AVRational m_fps;
 
     AVOutputFormat *m_fmt;
     AVFormatContext *m_oc;
@@ -85,7 +86,7 @@ private:
 
     FrameGeneratorCallback m_generateFrame;
 
-    VideoEncoder(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb);
+    VideoEncoder(const std::string &filePath, int w, int h, AVRational fps, FrameGeneratorCallback cb);
     OutputStreamPtr AddStream(enum AVCodecID codec_id);
     bool OpenVideo(OutputStream *ost, AVDictionary *opt_arg);
     AVFrame *GetVideoFrame();
@@ -97,7 +98,7 @@ private:
 public:
     ~VideoEncoder();
 
-    static VideoEncoderPtr Create(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb);
+    static VideoEncoderPtr Create(const std::string &filePath, int w, int h, AVRational fps, FrameGeneratorCallback cb);
     void EncodeLoop();
     void Finalize();
 
@@ -112,7 +113,7 @@ public:
     }
 
     double GetFPS() const {
-        return m_fps;
+        return av_q2d(m_fps);
     }
 };
 

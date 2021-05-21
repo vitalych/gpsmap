@@ -63,7 +63,8 @@ static bool GenerateTimeCodeFrame(VideoEncoder &encoder, OutputStream &os, Frame
 
     ImageBuf ib(ImageSpec(width, height, 4), pixels);
 
-    time_t ts = state.vi.Start + (time_t)((double) frameIndex / state.vi.FrameRate);
+    auto fr = av_q2d(state.vi.FrameRate);
+    time_t ts = state.vi.Start + (time_t)((double) frameIndex / fr);
     if (ts != state.timestamp) {
         state.label = time_to_str(ts);
         state.timestamp = ts;
@@ -90,6 +91,11 @@ static bool GenerateTimeCodeFrame(VideoEncoder &encoder, OutputStream &os, Frame
 }
 
 static bool ProcessGenerateTimeCodeVideos(const std::vector<std::string> &argv) {
+    if (argv.size() != 2) {
+        std::cerr << "Invalid number of args: " << argv.size() << "\n";
+        return false;
+    }
+
     const std::string &descFile = argv[0];
     boost::filesystem::path outDir(argv[1]);
 
@@ -106,7 +112,7 @@ static bool ProcessGenerateTimeCodeVideos(const std::vector<std::string> &argv) 
     }
 
     if (!DeserializeVideoInfos(inputDoc["segments"], videoInfo)) {
-        std::cout << "Could not deserialize segments info\n";
+        std::cerr << "Could not deserialize segments info\n";
         return false;
     }
 
@@ -121,7 +127,7 @@ static bool ProcessGenerateTimeCodeVideos(const std::vector<std::string> &argv) 
             boost::filesystem::path videoPath(outDir);
             videoPath.append(fileName + ".TC.MOV");
 
-            FrameState fs = {.vi = vi};
+            FrameState fs = {.fontPath = "/home/vitaly/perso/gps/rsrc/LiberationSans-Regular.ttf", .vi = vi};
 
             auto cb = std::bind(&GenerateTimeCodeFrame, std::placeholders::_1, std::placeholders::_2, fs);
             auto encoder = VideoEncoder::Create(videoPath.string(), LABEL_WIDTH, LABEL_HEIGHT, vi.FrameRate, cb);

@@ -60,7 +60,7 @@ static inline std::string cpp_av_ts2timestr(int64_t ts, AVRational *tb) {
     if (ts == AV_NOPTS_VALUE) {
         snprintf(buf, AV_TS_MAX_STRING_SIZE, "NOPTS");
     } else {
-        snprintf(buf, AV_TS_MAX_STRING_SIZE, "%.6g", av_q2d(*tb) * ts);
+        snprintf(buf, AV_TS_MAX_STRING_SIZE, "%.10g", av_q2d(*tb) * ts);
     }
     return buf;
 }
@@ -75,11 +75,12 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt) {
     auto duration_tb = cpp_av_ts2timestr(pkt->duration, time_base);
     auto pts_tb = cpp_av_ts2timestr(pkt->pts, time_base);
 
-    printf("pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s stream_index:%d\n", pts.c_str(),
-           pts_tb.c_str(), dts.c_str(), dts_tb.c_str(), duration.c_str(), duration_tb.c_str(), pkt->stream_index);
+    printf("pts:%10s pts_time:%15s dts:%10s dts_time:%15s duration:%15s duration_time:%10s stream_index:%d\n",
+           pts.c_str(), pts_tb.c_str(), dts.c_str(), dts_tb.c_str(), duration.c_str(), duration_tb.c_str(),
+           pkt->stream_index);
 }
 
-VideoEncoder::VideoEncoder(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb) {
+VideoEncoder::VideoEncoder(const std::string &filePath, int w, int h, AVRational fps, FrameGeneratorCallback cb) {
     m_filePath = filePath;
     m_width = w;
     m_height = h;
@@ -164,8 +165,12 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
     ret->enc = c;
 
     std::stringstream codecParams;
-    codecParams << "pools=1:numa-pools=1:log-level=1";
+    codecParams << "pools=1:numa-pools=1:log-level=1:bframes=0:keyint=30";
     auto cp = codecParams.str();
+
+    ret->st->time_base = av_inv_q(m_fps);
+    ret->st->r_frame_rate = m_fps;
+    ret->st->avg_frame_rate = m_fps;
 
     switch (ret->codec->type) {
         case AVMEDIA_TYPE_VIDEO:
@@ -179,14 +184,9 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
              * of which frame timestamps are represented. For fixed-fps content,
              * timebase should be 1/framerate and timestamp increments should be
              * identical to 1. */
-            // ret->st->time_base =
-            if ((int) (m_fps * 100.0) == 5994) {
-                c->time_base = (AVRational){1001, 60000};
-                c->framerate = (AVRational){60000, 1001};
-            } else {
-                c->time_base = (AVRational){1, (int) m_fps};
-                c->framerate = (AVRational){(int) m_fps, 1};
-            }
+            c->ticks_per_frame = 1;
+            c->time_base = av_inv_q(m_fps);
+            c->framerate = m_fps;
 
             // Doesn't work with x265
             // c->thread_count = 1;
@@ -433,7 +433,8 @@ void VideoEncoder::ClearFrame(OutputStream &os) {
     }
 }
 
-VideoEncoderPtr VideoEncoder::Create(const std::string &filePath, int w, int h, double fps, FrameGeneratorCallback cb) {
+VideoEncoderPtr VideoEncoder::Create(const std::string &filePath, int w, int h, AVRational fps,
+                                     FrameGeneratorCallback cb) {
     av_log_set_level(AV_LOG_QUIET);
     auto ret = VideoEncoderPtr(new VideoEncoder(filePath, w, h, fps, cb));
     if (!ret->Initialize()) {
