@@ -25,13 +25,17 @@
 #ifndef _GPSMAP_UTILS_H_
 #define _GPSMAP_UTILS_H_
 
+extern "C" {
+#include <libavutil/rational.h>
+}
+
 namespace gpsmap {
 
 struct VideoInfo {
     std::string Path;
     int FileId = 0;
     int FileSequence = 0;
-    float FrameRate = 0.0f;
+    AVRational FrameRate = {0, 1};
     unsigned FrameCount = 0;
 
     // These come from the GPX data and may not fully match

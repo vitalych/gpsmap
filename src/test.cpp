@@ -30,7 +30,9 @@ TEST(ComputeMapSegmentsForGpxVideos, T1) {
     std::vector<GPXInfo> gpxInfo;
     std::vector<VideoInfo> segmentInfo;
 
-    videoInfo.push_back({.FileId = 0, .FileSequence = 0, .FrameRate = 60.0f, .FrameCount = 60 * 100});
+    auto fr = (AVRational){60, 1};
+
+    videoInfo.push_back({.FileId = 0, .FileSequence = 0, .FrameRate = fr, .FrameCount = 60 * 100});
     gpxInfo.push_back({.Start = 123, .Duration = 100.0});
 
     auto ret = ComputeMapSegmentsForGpxVideos(videoInfo, gpxInfo, segmentInfo);
@@ -45,10 +47,10 @@ TEST(ComputeMapSegmentsForGpxVideos, T1) {
 
     //////////////
 
-    videoInfo.push_back({.FileId = 0, .FileSequence = 1, .FrameRate = 60.0f, .FrameCount = 60 * 111});
+    videoInfo.push_back({.FileId = 0, .FileSequence = 1, .FrameRate = fr, .FrameCount = 60 * 111});
     gpxInfo.push_back({.Start = 123 + 100, .Duration = 111.0});
 
-    videoInfo.push_back({.FileId = 0, .FileSequence = 2, .FrameRate = 60.0f, .FrameCount = 60 * 222});
+    videoInfo.push_back({.FileId = 0, .FileSequence = 2, .FrameRate = fr, .FrameCount = 60 * 222});
     gpxInfo.push_back({.Start = 123 + 100 + 111, .Duration = 222.0});
 
     segmentInfo.clear();
@@ -63,10 +65,10 @@ TEST(ComputeMapSegmentsForGpxVideos, T1) {
 
     //////////////
 
-    videoInfo.push_back({.FileId = 1, .FileSequence = 0, .FrameRate = 60.0f, .FrameCount = 60 * 444});
+    videoInfo.push_back({.FileId = 1, .FileSequence = 0, .FrameRate = fr, .FrameCount = 60 * 444});
     gpxInfo.push_back({.Start = 1230, .Duration = 444.0});
 
-    videoInfo.push_back({.FileId = 1, .FileSequence = 1, .FrameRate = 60.0f, .FrameCount = 60 * 555});
+    videoInfo.push_back({.FileId = 1, .FileSequence = 1, .FrameRate = fr, .FrameCount = 60 * 555});
     gpxInfo.push_back({.Start = 1230 + 444, .Duration = 555.0});
 
     segmentInfo.clear();

@@ -94,7 +94,7 @@ struct ResourceBundle {
     GeoCoords startMarker;
     GeoCoords endMarker;
     gpsmap::GPXSegmentPtr wholeTrack;
-    double fps;
+    AVRational fps;
 };
 
 static std::string StripSpecialCharacters(const std::string &str) {
@@ -139,7 +139,7 @@ struct EncodingFrameParams {
 };
 
 std::atomic_uint g_processedFrames(0);
-double g_fps = 25;
+AVRational g_fps = {25, 1};
 
 bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams &state) {
     auto frameIndex = os.next_pts;
@@ -412,7 +412,8 @@ static volatile bool s_terminated = false;
 
 static void StatsPrinter() {
     while (!s_terminated) {
-        auto totalSeconds = g_processedFrames / (int) g_fps;
+        auto fps = av_q2d(g_fps);
+        auto totalSeconds = (int) ((double) g_processedFrames / fps);
         auto seconds = totalSeconds % 60;
         auto minutes = totalSeconds / 60;
         std::cout << g_processedFrames << " frames - " << std::setfill('0') << std::setw(2) << minutes << ":"
@@ -445,7 +446,8 @@ int main(int argc, char **argv) {
 
     std::sort(args.InputGPXPaths.begin(), args.InputGPXPaths.end());
     GPXSegments segments;
-    if (!LoadSegments(args.InputGPXPaths, segments, g_fps, false)) {
+    auto fps = av_q2d(g_fps);
+    if (!LoadSegments(args.InputGPXPaths, segments, fps, false)) {
         std::cerr << "Could not load segments\n";
         return -1;
     }
@@ -473,7 +475,7 @@ int main(int argc, char **argv) {
         auto ms = CreateMapSwitcher(wholeTrack, resourcesBundle, duration);
         auto i = 0;
         for (TrackItem &item : *segment) {
-            ms->ComputeState(item, i, g_fps);
+            ms->ComputeState(item, i, fps);
             ++i;
         }
     }

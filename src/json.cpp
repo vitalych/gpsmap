@@ -67,7 +67,9 @@ rapidjson::Value SerializeVideoInfos(rapidjson::Document &Doc, const std::vector
         Info.AddMember("path", vi.Path, Allocator);
         Info.AddMember("file_id", vi.FileId, Allocator);
         Info.AddMember("file_seq", vi.FileSequence, Allocator);
-        Info.AddMember("frame_rate", vi.FrameRate, Allocator);
+        Info.AddMember("frame_rate", av_q2d(vi.FrameRate), Allocator);
+        Info.AddMember("frame_rate_num", vi.FrameRate.num, Allocator);
+        Info.AddMember("frame_rate_den", vi.FrameRate.den, Allocator);
         Info.AddMember("frame_count", vi.FrameCount, Allocator);
 
         if (vi.Start) {
@@ -107,8 +109,9 @@ bool DeserializeVideoInfos(const rapidjson::Value &value, std::vector<VideoInfo>
             return false;
         }
 
-        if (val.HasMember("frame_rate")) {
-            vi.FrameRate = val["frame_rate"].GetDouble();
+        if (val.HasMember("frame_rate_num") && val.HasMember("frame_rate_den")) {
+            vi.FrameRate.num = val["frame_rate_num"].GetInt();
+            vi.FrameRate.den = val["frame_rate_den"].GetInt();
         } else {
             return false;
         }

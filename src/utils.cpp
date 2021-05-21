@@ -34,6 +34,10 @@
 
 namespace fs = std::filesystem;
 
+static bool operator!=(const AVRational &a, const AVRational &b) {
+    return !(a.num == b.num && a.den == b.den);
+}
+
 namespace gpsmap {
 
 std::string exec(const char *cmd) {
@@ -74,14 +78,14 @@ bool GetVideoInfo(const std::string &filePath, VideoInfo &info) {
     auto fileName = fs::path(filePath).stem().string();
     sscanf(fileName.c_str(), "GX-%d-%d", &info.FileId, &info.FileSequence);
 
-    unsigned n = 0, d = 0;
+    int n = 0, d = 0;
     sscanf(frameRate.c_str(), "%d/%d", &n, &d);
 
     if (!n || !d) {
         throw std::runtime_error("Invalid frame rate");
     }
 
-    info.FrameRate = (float) n / (float) d;
+    info.FrameRate = {n, d};
 
     return true;
 }
@@ -91,9 +95,12 @@ bool LoadVideoInfo(const std::string &inputVideoPath, VideoInfo &info) {
         std::cerr << "Could not get video info for " << inputVideoPath << "\n";
         return false;
     }
+
+    auto fr = av_q2d(info.FrameRate);
+
     std::cout << inputVideoPath << ": fileId=" << info.FileId << " fileSeq=" << info.FileSequence
-              << " frameCount=" << info.FrameCount << " frameRate=" << info.FrameRate
-              << " duration=" << (double) info.FrameCount / info.FrameRate << "\n";
+              << " frameCount=" << info.FrameCount << " frameRate=" << fr
+              << " duration=" << (double) info.FrameCount / fr << "\n";
     return true;
 }
 
