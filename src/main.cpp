@@ -31,7 +31,7 @@
 
 #include <gpsmap/encoder.h>
 #include <gpsmap/gpx.h>
-#include <gpsmap/mapgen.h>
+#include <gpsmap/map.h>
 #include <gpsmap/resources.h>
 #include <gpsmap/tilemanager.h>
 #include <gpsmap/utils.h>

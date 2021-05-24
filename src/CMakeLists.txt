@@ -23,7 +23,7 @@ add_library(
     encoder.cpp
     gpx.cpp
     tilemanager.cpp
-    mapgen.cpp
+    map.cpp
     resources.cpp
     utils.cpp
     json.cpp
