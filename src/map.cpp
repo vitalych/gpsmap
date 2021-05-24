@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <gpsmap/mapgen.h>
+#include <gpsmap/map.h>
 
 OIIO_NAMESPACE_USING
 
