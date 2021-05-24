@@ -111,9 +111,9 @@ int VideoEncoder::WriteFrame(AVCodecContext *c, AVStream *st, AVFrame *frame) {
         AVPacket pkt = {0};
 
         ret = avcodec_receive_packet(c, &pkt);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             break;
-        else if (ret < 0) {
+        } else if (ret < 0) {
             auto err = cpp_av_err2str(ret);
             fprintf(stderr, "Error encoding a frame: %s\n", err.c_str());
             exit(1);
@@ -165,10 +165,6 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
     }
     ret->enc = c;
 
-    std::stringstream codecParams;
-    codecParams << "pools=1:numa-pools=1:log-level=1:bframes=0:keyint=30";
-    auto cp = codecParams.str();
-
     ret->st->time_base = av_inv_q(m_fps);
     ret->st->r_frame_rate = m_fps;
     ret->st->avg_frame_rate = m_fps;
@@ -177,10 +173,10 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
         case AVMEDIA_TYPE_VIDEO:
             c->codec_id = codec_id;
 
-            c->bit_rate = 400000;
             /* Resolution must be a multiple of two. */
             c->width = m_width;
             c->height = m_height;
+
             /* timebase: This is the fundamental unit of time (in seconds) in terms
              * of which frame timestamps are represented. For fixed-fps content,
              * timebase should be 1/framerate and timestamp increments should be
@@ -188,11 +184,6 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
             c->ticks_per_frame = 1;
             c->time_base = av_inv_q(m_fps);
             c->framerate = m_fps;
-
-            // Doesn't work with x265
-            // c->thread_count = 1;
-            // c->thread_type = FF_THREAD_FRAME;
-            av_opt_set(c->priv_data, "x265-params", cp.c_str(), 0);
 
             c->gop_size = 12; /* emit one intra frame every twelve frames at most */
             c->pix_fmt = STREAM_PIX_FMT;
@@ -209,7 +200,27 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
             break;
 
         default:
+            abort();
             break;
+    }
+
+    switch (codec_id) {
+        case AV_CODEC_ID_H264:
+            c->bit_rate = 800000;
+            c->thread_count = 1;
+            c->thread_type = FF_THREAD_FRAME;
+            break;
+
+        case AV_CODEC_ID_HEVC: {
+            c->bit_rate = 400000;
+            std::stringstream codecParams;
+            codecParams << "pools=1:numa-pools=1:log-level=1";
+            auto cp = codecParams.str();
+            av_opt_set(c->priv_data, "x265-params", cp.c_str(), 0);
+        } break;
+
+        default:
+            abort();
     }
 
     /* Some formats want stream headers to be separate. */
