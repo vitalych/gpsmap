@@ -120,6 +120,7 @@ int VideoEncoder::WriteFrame(AVCodecContext *c, AVStream *st, AVFrame *frame) {
         }
 
         /* rescale output packet timestamp values from codec to stream timebase */
+        pkt.duration = av_rescale_q(1, av_inv_q(m_fps), c->time_base);
         av_packet_rescale_ts(&pkt, c->time_base, st->time_base);
         pkt.stream_index = st->index;
 
