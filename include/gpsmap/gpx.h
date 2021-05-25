@@ -97,7 +97,7 @@ public:
 
     void SplitIdleSegments(GPXSegments &segments) const;
 
-    GPXSegmentPtr Interpolate(unsigned frequency) const;
+    GPXSegmentPtr Interpolate(double frequency) const;
 
     const TrackItem &operator[](std::size_t idx) const {
         assert(idx < m_items.size());
@@ -173,7 +173,7 @@ private:
     }
 
 public:
-    bool LoadFromFile(const std::string &path, unsigned interpolationFrequency);
+    bool LoadFromFile(const std::string &path, double interpolationFrequency);
 
     void SetInitialDistance(double distance) {
         m_initialDistance = distance;

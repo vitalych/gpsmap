@@ -258,7 +258,7 @@ bool GPXSegment::GetInfo(GPXInfo &info) const {
     return true;
 }
 
-GPXSegmentPtr GPXSegment::Interpolate(unsigned frequency) const {
+GPXSegmentPtr GPXSegment::Interpolate(double frequency) const {
     if (m_items.size() < 2) {
         return nullptr;
     }
@@ -277,8 +277,8 @@ GPXSegmentPtr GPXSegment::Interpolate(unsigned frequency) const {
             return nullptr;
         }
 
-        auto frames = td * frequency;
-        auto timeStampDelta = td / frames;
+        auto frames = double(td * frequency);
+        auto timeStampDelta = double(td) / frames;
         auto latitudeDelta = (b.Latitude - a.Latitude) / frames;
         auto longitudeDelta = (b.Longitude - a.Longitude) / frames;
         auto speedDelta = (b.Speed - a.Speed) / frames;
@@ -319,7 +319,7 @@ std::shared_ptr<GPX> GPX::Create() {
     return std::shared_ptr<GPX>(new GPX());
 }
 
-bool GPX::LoadFromFile(const std::string &path, unsigned interpolationFrequency) {
+bool GPX::LoadFromFile(const std::string &path, double interpolationFrequency) {
     pt::ptree tree;
     pt::read_xml(path, tree);
 
