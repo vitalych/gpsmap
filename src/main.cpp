@@ -31,6 +31,7 @@
 
 #include <gpsmap/encoder.h>
 #include <gpsmap/gpx.h>
+#include <gpsmap/json.h>
 #include <gpsmap/map.h>
 #include <gpsmap/resources.h>
 #include <gpsmap/tilemanager.h>
@@ -43,8 +44,7 @@ using namespace gpsmap;
 struct Arguments {
     boost::filesystem::path ResourceDir;
     std::string TilesRootPath;
-    std::vector<std::string> InputVideoPaths;
-    std::vector<std::string> InputVideoGpxPaths;
+    std::string VideoSegmentsPath;
     boost::filesystem::path OutputDirectory;
     std::vector<std::string> InputGPXPaths;
 };
@@ -67,10 +67,8 @@ static bool ParseCommandLine(int argc, char **argv, Arguments &args) {
             }
         } else if (!strcmp(argv[i], "-tiles")) {
             args.TilesRootPath = argv[i + 1];
-        } else if (!strcmp(argv[i], "-vid")) {
-            args.InputVideoPaths.push_back(argv[i + 1]);
-        } else if (!strcmp(argv[i], "-vid-gpx")) {
-            args.InputVideoGpxPaths.push_back(argv[i + 1]);
+        } else if (!strcmp(argv[i], "-vid-segments")) {
+            args.VideoSegmentsPath = argv[i + 1];
         } else {
             std::cerr << "Invalid argument " << i << ": " << argv[i] << "\n";
             return false;
@@ -139,7 +137,7 @@ struct EncodingFrameParams {
 };
 
 std::atomic_uint g_processedFrames(0);
-AVRational g_fps = {25, 1};
+AVRational g_fps = {60000, 1001};
 
 bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams &state) {
     auto frameIndex = os.next_pts;
@@ -281,52 +279,50 @@ static void EncodeOneSegment(int unused, ResourceBundle &r, EncodingParams &p) {
 
 static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, task_set &tasks, thread_pool *tp,
                                                         ResourceBundle &resources, GPXSegments &segments) {
+
     std::vector<VideoInfo> videoInfo;
-    if (!LoadVideoInfo(args.InputVideoPaths, videoInfo)) {
+
+    if (!DeserializeVideoInfos(args.VideoSegmentsPath, videoInfo)) {
+        std::cerr << "Could not deserialize segments info\n";
         return false;
     }
 
-    std::vector<GPXInfo> gpxInfo;
-    if (!LoadVideoGpx(args.InputVideoGpxPaths, gpxInfo)) {
-        return false;
-    }
-
-    if (videoInfo.size() != gpxInfo.size()) {
-        std::cerr << "Videos and corresponding gpx files must match\n";
-        return false;
-    }
-
-    std::vector<VideoInfo> segmentInfo;
-    if (!ComputeMapSegmentsForGpxVideos(videoInfo, gpxInfo, segmentInfo)) {
-        std::cerr << "Could not compute segments\n";
-        return false;
-    }
+    auto fps = av_q2d(g_fps);
 
     // Now we have start date and number of frames in original video.
     // Match the ranges from the extern gpx data.
     // It's possible to have gaps: no external data for (part of) a given range.
-    std::vector<SegmentRange> ranges;
-    for (const auto &vi : segmentInfo) {
+    auto i = 0;
+    for (const auto &vi : videoInfo) {
         SegmentRange range;
         if (!GetSegmentRange(segments, vi.Start, vi.Duration, range)) {
             std::cerr << "Could not find matching external gpx data for file id " << vi.FileId << "\n";
             continue;
         }
 
-        ranges.push_back(range);
-    }
+        unsigned maxFrameCount = range.segment->size() - range.startIndex;
+        unsigned frameCount = std::min(vi.FrameCount, maxFrameCount);
 
-    // Generate actual segments
-    auto i = 0;
-    for (const auto &range : ranges) {
-        EncodingParams p;
-        p.fileSequenceId = 0;
-        p.segmentSequenceId = i;
-        p.startFrame = range.startIndex;
-        p.frameCount = range.endIndex - range.startIndex + 1;
-        p.seg = range.segment;
+        // Maximum video size is 5 minutes
+        unsigned framesPerChunk = fps * 60.0 * 5;
 
-        tasks.push(tp->push(EncodeOneSegment, resources, p));
+        unsigned j = 0;
+        while (frameCount > 0) {
+            unsigned framesInChunk = frameCount > framesPerChunk ? framesPerChunk : frameCount;
+
+            EncodingParams p;
+            p.fileSequenceId = vi.FileId;
+            p.segmentSequenceId = j;
+            p.startFrame = range.startIndex;
+            p.frameCount = framesInChunk;
+            p.seg = range.segment;
+
+            tasks.push(tp->push(EncodeOneSegment, resources, p));
+            frameCount -= framesInChunk;
+            range.startIndex += framesInChunk;
+
+            ++j;
+        }
         ++i;
     }
 
@@ -486,8 +482,8 @@ int main(int argc, char **argv) {
     task_set tasks(tp);
 
     // OneVideoPerSegment(tasks, tp, resourcesBundle, segments);
-    OneVideoPerSegmentParallel(tasks, tp, resourcesBundle, segments);
-    // MatchExternalGPXWithEmbeddedVideoTimestamps(args, tasks, tp, resourcesBundle, segments);
+    // OneVideoPerSegmentParallel(tasks, tp, resourcesBundle, segments);
+    MatchExternalGPXWithEmbeddedVideoTimestamps(args, tasks, tp, resourcesBundle, segments);
 
     tasks.wait(true);
     s_terminated = true;

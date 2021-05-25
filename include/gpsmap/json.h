@@ -40,6 +40,7 @@ bool WriteDocument(rapidjson::Document &doc, const std::string &file);
 bool ReadDocument(rapidjson::Document &doc, const std::string &file);
 rapidjson::Value SerializeVideoInfos(rapidjson::Document &Doc, const std::vector<VideoInfo> &info);
 bool DeserializeVideoInfos(const rapidjson::Value &value, std::vector<VideoInfo> &info);
+bool DeserializeVideoInfos(const std::string &descFile, std::vector<VideoInfo> &info);
 rapidjson::Value SerializeGPXInfos(rapidjson::Document &Doc, const std::vector<GPXInfo> &info);
 bool DeserializeGPXInfos(const rapidjson::Value &value, std::vector<GPXInfo> &info);
 
