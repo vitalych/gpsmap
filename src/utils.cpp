@@ -227,7 +227,7 @@ bool ComputeMapSegmentsForGpxVideos(const std::vector<VideoInfo> &videoInfo, con
     return true;
 }
 
-bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &segments, unsigned fps,
+bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &segments, double fps,
                   bool splitIdleParts) {
     double initialDistance = 0.0;
 
