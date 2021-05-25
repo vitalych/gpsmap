@@ -99,19 +99,9 @@ static bool ProcessGenerateTimeCodeVideos(const std::vector<std::string> &argv) 
     const std::string &descFile = argv[0];
     boost::filesystem::path outDir(argv[1]);
 
-    rapidjson::Document inputDoc;
-    if (!ReadDocument(inputDoc, descFile)) {
-        std::cerr << "Could not read " << descFile << "\n";
-        return false;
-    }
-
     std::vector<VideoInfo> videoInfo;
-    if (!inputDoc.HasMember("segments")) {
-        std::cerr << "No segments field in " << descFile << "\n";
-        return false;
-    }
 
-    if (!DeserializeVideoInfos(inputDoc["segments"], videoInfo)) {
+    if (!DeserializeVideoInfos(descFile, videoInfo)) {
         std::cerr << "Could not deserialize segments info\n";
         return false;
     }

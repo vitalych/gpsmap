@@ -136,6 +136,26 @@ bool DeserializeVideoInfos(const rapidjson::Value &value, std::vector<VideoInfo>
     return true;
 }
 
+bool DeserializeVideoInfos(const std::string &descFile, std::vector<VideoInfo> &info) {
+    rapidjson::Document inputDoc;
+    if (!ReadDocument(inputDoc, descFile)) {
+        std::cerr << "Could not read " << descFile << "\n";
+        return false;
+    }
+
+    if (!inputDoc.HasMember("segments")) {
+        std::cerr << "No segments field in " << descFile << "\n";
+        return false;
+    }
+
+    if (!DeserializeVideoInfos(inputDoc["segments"], info)) {
+        std::cerr << "Could not deserialize segments info\n";
+        return false;
+    }
+
+    return true;
+}
+
 rapidjson::Value SerializeGPXInfos(rapidjson::Document &Doc, const std::vector<GPXInfo> &info) {
     auto &Allocator = Doc.GetAllocator();
 
