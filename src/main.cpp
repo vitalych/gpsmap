@@ -161,6 +161,11 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams 
 
     const auto &frameDesc = (*state.params.seg)[actualFrameIndex];
 
+    if (!frameDesc.Valid) {
+        encoder.ClearFrame(os);
+        return true;
+    }
+
     if (!state.mapSwitcher->Generate(ib, frameDesc, frameIndex, encoder.GetFPS())) {
         state.failed = true;
         return false;
@@ -285,6 +290,18 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
     if (!DeserializeVideoInfos(args.VideoSegmentsPath, videoInfo)) {
         std::cerr << "Could not deserialize segments info\n";
         return false;
+    }
+
+    std::vector<GPXInfo> gpxInfo;
+    for (const auto &vi : videoInfo) {
+        GPXInfo info;
+        info.Start = vi.Start;
+        info.Duration = (double) vi.FrameCount / ((double) vi.FrameRate.num / (double) vi.FrameRate.den);
+        gpxInfo.push_back(info);
+    }
+
+    for (auto seg : segments) {
+        seg->FillSegment(gpxInfo);
     }
 
     auto fps = av_q2d(g_fps);

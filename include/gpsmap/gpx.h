@@ -39,6 +39,8 @@ static inline double to_deg(double rad) {
 
 namespace gpsmap {
 struct TrackItem {
+    bool Valid = true;
+
     std::string OriginalTimestamp;
     double Timestamp = 0.0;
     double Latitude = 0.0;
@@ -77,14 +79,15 @@ using TrackItems = std::vector<TrackItem>;
 class GPXSegment {
 private:
     double m_initialDistance;
+    double m_frequency;
     TrackItems m_items;
 
-    GPXSegment(double initialDistance) : m_initialDistance(initialDistance) {
+    GPXSegment(double initialDistance, double frequency) : m_initialDistance(initialDistance), m_frequency(frequency) {
     }
 
 public:
-    static GPXSegmentPtr Create(double initialDistance) {
-        return GPXSegmentPtr(new GPXSegment(initialDistance));
+    static GPXSegmentPtr Create(double initialDistance, double frequency) {
+        return GPXSegmentPtr(new GPXSegment(initialDistance, frequency));
     }
 
     void AddItem(const TrackItem &item) {
@@ -104,12 +107,16 @@ public:
         return m_items[idx];
     }
 
+    void AppendFront(const std::vector<TrackItem> &items) {
+        m_items.insert(m_items.begin(), items.begin(), items.end());
+    }
+
     GPXSegmentPtr Extract(unsigned start, unsigned end) const {
         if (start >= m_items.size() || end > m_items.size() || end < start) {
             return nullptr;
         }
 
-        auto ret = GPXSegment::Create(0);
+        auto ret = GPXSegment::Create(0, m_frequency);
         ret->m_items.insert(ret->m_items.end(), m_items.begin() + start, m_items.begin() + end);
         assert(ret->m_items.size() == end - start);
         return ret;
@@ -160,6 +167,12 @@ public:
     }
 
     bool GetInfo(GPXInfo &info) const;
+
+    double GetFrequency() const {
+        return m_frequency;
+    }
+
+    bool FillSegment(const std::vector<GPXInfo> &info);
 };
 
 GPXSegmentPtr MergeSegments(const GPXSegments &segments);
@@ -194,6 +207,7 @@ public:
     const GPXSegments &GetTrackSegments() const {
         return m_trackSegments;
     }
+
     static GPXPtr Create();
 };
 

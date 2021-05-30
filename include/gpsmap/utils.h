@@ -46,8 +46,8 @@ struct VideoInfo {
 
 struct SegmentRange {
     GPXSegmentPtr segment;
-    unsigned startIndex;
-    unsigned endIndex;
+    int startIndex;
+    int endIndex;
 };
 
 bool GetVideoInfo(const std::string &filePath, VideoInfo &info);
