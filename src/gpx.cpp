@@ -263,7 +263,7 @@ GPXSegmentPtr GPXSegment::Interpolate(double frequency) const {
         return nullptr;
     }
 
-    auto ret = GPXSegment::Create(m_initialDistance);
+    auto ret = GPXSegment::Create(m_initialDistance, frequency);
 
     unsigned i = 0;
     bool isFirst = true;
@@ -287,6 +287,7 @@ GPXSegmentPtr GPXSegment::Interpolate(double frequency) const {
 
         for (auto t = 0; t < frames; ++t) {
             TrackItem newItem;
+            newItem.Valid = true;
             newItem.Timestamp = a.Timestamp + timeStampDelta * t;
             newItem.Latitude = a.Latitude + latitudeDelta * t;
             newItem.Longitude = a.Longitude + longitudeDelta * t;
@@ -306,13 +307,58 @@ GPXSegmentPtr GPXSegment::Interpolate(double frequency) const {
 }
 
 GPXSegmentPtr MergeSegments(const GPXSegments &segments) {
-    auto ret = GPXSegment::Create(0.0);
+    if (segments.size() == 0) {
+        return nullptr;
+    }
+
+    auto freq = segments[0]->GetFrequency();
+    auto ret = GPXSegment::Create(0.0, freq);
     for (auto &seg : segments) {
         for (auto &item : *seg) {
             ret->AddItem(item);
         }
     }
     return ret;
+}
+
+bool GPXSegment::FillSegment(const std::vector<GPXInfo> &info) {
+    for (const auto &i : info) {
+        auto &f = front();
+        auto &b = back();
+        auto ts1 = i.Start;
+        auto ts2 = i.Start + i.Duration;
+        if (ts1 >= f.Timestamp && ts2 <= b.Timestamp) {
+            // The video is fully contained with the track segment,
+            // no need to pad the segment with dummy items.
+            continue;
+        }
+
+        if (ts2 <= f.Timestamp || ts1 >= b.Timestamp) {
+            // Video segment is outside the bounds of this track segments
+            continue;
+        }
+
+        if (ts1 < f.Timestamp && ts2 > f.Timestamp) {
+            // Video segment overlaps on the left
+            auto overlap = f.Timestamp - ts1;
+
+            // Pad the segment
+            auto newItemsCount = overlap * GetFrequency();
+            TrackItem item = f;
+
+            std::vector<TrackItem> newItems;
+            for (auto i = 0; i < newItemsCount; ++i) {
+                item.Valid = false;
+                item.Timestamp = f.Timestamp - overlap + i / GetFrequency();
+                newItems.push_back(item);
+            }
+
+            AppendFront(newItems);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 std::shared_ptr<GPX> GPX::Create() {
@@ -329,7 +375,7 @@ bool GPX::LoadFromFile(const std::string &path, double interpolationFrequency) {
     BOOST_FOREACH (pt::ptree::value_type &trkseg, tree.get_child("gpx.trk")) {
         bool firstSegment = true;
 
-        auto segment = GPXSegment::Create(initialDistance);
+        auto segment = GPXSegment::Create(initialDistance, interpolationFrequency);
 
         BOOST_FOREACH (pt::ptree::value_type &trkpt, trkseg.second) {
             TrackItem item;
