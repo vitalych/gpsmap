@@ -405,15 +405,18 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
 }
 
 static volatile bool s_terminated = false;
+static bool s_print_stats = true;
 
 static void StatsPrinter() {
     while (!s_terminated) {
-        auto fps = av_q2d(g_fps);
-        auto totalSeconds = (int) ((double) g_processedFrames / fps);
-        auto seconds = totalSeconds % 60;
-        auto minutes = totalSeconds / 60;
-        std::cout << g_processedFrames << " frames - " << std::setfill('0') << std::setw(2) << minutes << ":"
-                  << std::setfill('0') << std::setw(2) << seconds << "\n";
+        if (s_print_stats) {
+            auto fps = av_q2d(g_fps);
+            auto totalSeconds = (int) ((double) g_processedFrames / fps);
+            auto seconds = totalSeconds % 60;
+            auto minutes = totalSeconds / 60;
+            std::cout << g_processedFrames << " frames - " << std::setfill('0') << std::setw(2) << minutes << ":"
+                      << std::setfill('0') << std::setw(2) << seconds << "\n";
+        }
         sleep(1);
     }
     std::cout << "Stats thread terminated\n";
