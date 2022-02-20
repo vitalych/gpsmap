@@ -249,7 +249,7 @@ bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &se
             }
         }
 
-        initialDistance = gpx->back()->back().TotalDistance;
+        initialDistance = gpx->TotalDistance();
     }
 
     return true;

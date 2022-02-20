@@ -192,6 +192,23 @@ public:
         m_initialDistance = distance;
     }
 
+    const double TotalDistance() const {
+        if (size() == 0) {
+            return m_initialDistance;
+        }
+
+        auto seg_it = back();
+        if (seg_it->size() == 0) {
+            return m_initialDistance;
+        }
+
+        return back()->back().TotalDistance;
+    }
+
+    const size_t size() const {
+        return m_trackSegments.size();
+    }
+
     const GPXSegmentPtr back() const {
         return m_trackSegments.back();
     }
