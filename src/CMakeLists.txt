@@ -63,5 +63,5 @@ target_link_libraries(gpstool ${LIBS})
 target_link_libraries(gpstimecode ${LIBS})
 target_link_libraries(gpstest gtest ${LIBS})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
