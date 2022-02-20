@@ -258,6 +258,38 @@ bool GPXSegment::GetInfo(GPXInfo &info) const {
     return true;
 }
 
+// Timestamps from GPX files have second granularity. This function
+// interpolates them to something finer grained.
+void GPXSegment::InterpolateTimestamps() {
+    m_items.push_back(m_items.back());
+    m_items.back().Timestamp += 1.0;
+
+    for (size_t i = 0; i < m_items.size(); ++i) {
+        for (size_t j = i + 1; j < m_items.size(); ++j) {
+            if (m_items[i].Timestamp != m_items[j].Timestamp) {
+                auto idxDiff = j - i;
+                assert(idxDiff > 0);
+                auto tsDiff = m_items[j].Timestamp - m_items[i].Timestamp;
+                assert(tsDiff > 0.0);
+                auto incr = tsDiff / idxDiff;
+                assert(incr > 0.0);
+
+                for (auto k = i + 1; k < j; ++k) {
+                    m_items[k].Timestamp += incr * (k - i);
+                }
+                i = j - 1;
+                break;
+            }
+        }
+    }
+
+    m_items.pop_back();
+
+    for (size_t i = 1; i < m_items.size(); ++i) {
+        assert(m_items[i - 1].Timestamp < m_items[i].Timestamp);
+    }
+}
+
 GPXSegmentPtr GPXSegment::Interpolate(double frequency) const {
     if (m_items.size() < 2) {
         return nullptr;
@@ -417,6 +449,7 @@ bool GPX::LoadFromFile(const std::string &path, double interpolationFrequency) {
         }
 
         segment->UpdateBearing();
+        segment->InterpolateTimestamps();
 
         if (interpolationFrequency) {
             segment = segment->Interpolate(interpolationFrequency);

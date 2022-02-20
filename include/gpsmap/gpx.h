@@ -100,6 +100,8 @@ public:
 
     void SplitIdleSegments(GPXSegments &segments) const;
 
+    void InterpolateTimestamps();
+
     GPXSegmentPtr Interpolate(double frequency) const;
 
     const TrackItem &operator[](std::size_t idx) const {
