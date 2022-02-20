@@ -256,21 +256,30 @@ bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &se
 }
 
 bool GetSegmentRange(GPXSegments &segments, time_t start, double duration, SegmentRange &range) {
+    bool hasRange = false;
+
     for (const auto &seg : segments) {
+        hasRange = false;
         size_t nextItem = 0;
         TrackItem item;
         if (!seg->GetClosestItem(start, nextItem, item)) {
             continue;
         }
 
+        hasRange = true;
         range.segment = seg;
         range.startIndex = nextItem;
+        range.endIndex = seg->size() - 1;
 
         if (!seg->GetClosestItem(start + duration, nextItem, item)) {
             continue;
         }
 
         range.endIndex = nextItem;
+        return true;
+    }
+
+    if (hasRange) {
         return true;
     }
 
