@@ -405,6 +405,10 @@ bool GPX::LoadFromFile(const std::string &path, double interpolationFrequency) {
     auto initialDistance = m_initialDistance;
 
     BOOST_FOREACH (pt::ptree::value_type &trkseg, tree.get_child("gpx.trk")) {
+        if (trkseg.first != "trkseg") {
+            continue;
+        }
+
         bool firstSegment = true;
 
         auto segment = GPXSegment::Create(initialDistance, interpolationFrequency);
