@@ -305,6 +305,8 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
     }
 
     auto fps = av_q2d(g_fps);
+    // Maximum video size is 5 minutes
+    unsigned framesPerChunk = fps * 60.0 * 5;
 
     // Now we have start date and number of frames in original video.
     // Match the ranges from the extern gpx data.
@@ -319,9 +321,7 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
 
         unsigned maxFrameCount = range.segment->size() - range.startIndex;
         unsigned frameCount = std::min(vi.FrameCount, maxFrameCount);
-
-        // Maximum video size is 5 minutes
-        unsigned framesPerChunk = fps * 60.0 * 5;
+        framesPerChunk = frameCount;
 
         unsigned j = 0;
         while (frameCount > 0) {
