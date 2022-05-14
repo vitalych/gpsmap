@@ -106,19 +106,15 @@ static std::string StripSpecialCharacters(const std::string &str) {
     return ss.str();
 }
 
-// Describes a video file to encode.
 struct EncodingParams {
-    gpsmap::GPXSegmentPtr seg;
+    TrackItems frames;
 
     int segmentSequenceId;
     int fileSequenceId;
-    int startFrame;
-    int frameCount;
 
     std::string getFileName() const {
-        assert(seg);
-        assert((size_t) startFrame < seg->size());
-        auto &first = *(seg->begin() + startFrame);
+        assert(frames.size() > 0);
+        auto &first = frames[0];
         auto t = time_to_str(first.Timestamp);
 
         std::stringstream videoFileName;
@@ -141,13 +137,10 @@ AVRational g_fps = {60000, 1001};
 
 bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams &state) {
     auto frameIndex = os.next_pts;
-    auto actualFrameIndex = state.params.startFrame + frameIndex;
 
-    if (frameIndex >= state.params.frameCount) {
+    if ((size_t) frameIndex >= state.params.frames.size()) {
         return false;
     }
-
-    assert(actualFrameIndex < (unsigned) state.params.seg->size());
 
     ++g_processedFrames;
 
@@ -159,8 +152,7 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams 
 
     ImageBuf ib(ImageSpec(width, height, 4), pixels);
 
-    const auto &frameDesc = (*state.params.seg)[actualFrameIndex];
-
+    const auto &frameDesc = state.params.frames[frameIndex];
     if (!frameDesc.Valid) {
         encoder.ClearFrame(os);
         return true;
@@ -262,9 +254,8 @@ static void EncodeOneSegment(int unused, ResourceBundle &r, EncodingParams &p) {
     fs.labelGen = LabelGenerator::Create(r.resources->GetFontPath().string());
     fs.mapSwitcher = CreateMapSwitcher(r.wholeTrack, r, 0);
 
-    assert(fs.params.seg);
-    assert((size_t) p.startFrame < fs.params.seg->size());
-    auto &first = *(fs.params.seg->begin() + p.startFrame);
+    assert(fs.params.frames.size() > 0);
+    auto &first = fs.params.frames[0];
     auto t = time_to_str(first.Timestamp);
 
     boost::filesystem::path videoPath(r.OutputDirectory);
@@ -313,30 +304,32 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
     // It's possible to have gaps: no external data for (part of) a given range.
     auto i = 0;
     for (const auto &vi : videoInfo) {
-        SegmentRange range;
-        if (!GetSegmentRange(segments, vi.Start, vi.Duration, range)) {
+        TrackItems trackItems;
+        if (!GetSegmentRange(segments, trackItems, vi.Start, vi.Duration, vi.FrameCount, fps)) {
             std::cerr << "Could not find matching external gpx data for file id " << vi.FileId << "\n";
             continue;
         }
 
-        unsigned maxFrameCount = range.segment->size() - range.startIndex;
-        unsigned frameCount = std::min(vi.FrameCount, maxFrameCount);
-        framesPerChunk = frameCount;
+        assert(trackItems.size() == vi.FrameCount);
 
+        unsigned frameCount = vi.FrameCount;
         unsigned j = 0;
+        unsigned startFrame = 0;
         while (frameCount > 0) {
             unsigned framesInChunk = frameCount > framesPerChunk ? framesPerChunk : frameCount;
 
             EncodingParams p;
             p.fileSequenceId = vi.FileId;
             p.segmentSequenceId = j;
-            p.startFrame = range.startIndex;
-            p.frameCount = framesInChunk;
-            p.seg = range.segment;
+
+            p.frames.resize(framesInChunk);
+            for (auto i = 0u; i < framesInChunk; ++i) {
+                p.frames[i] = trackItems[i + startFrame];
+            }
 
             tasks.push(tp->push(EncodeOneSegment, resources, p));
             frameCount -= framesInChunk;
-            range.startIndex += framesInChunk;
+            startFrame += framesInChunk;
 
             ++j;
         }
@@ -353,9 +346,8 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
         EncodingParams p;
         p.fileSequenceId = 0;
         p.segmentSequenceId = i;
-        p.startFrame = 0;
-        p.frameCount = segment->size();
-        p.seg = segment;
+        p.frames.resize(segment->size());
+        std::copy(segment->begin(), segment->end(), p.frames.begin());
 
         tasks.push(tp->push(EncodeOneSegment, resources, p));
         ++i;

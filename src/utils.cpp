@@ -255,35 +255,70 @@ bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &se
     return true;
 }
 
-bool GetSegmentRange(GPXSegments &segments, time_t start, double duration, SegmentRange &range) {
-    bool hasRange = false;
-
+bool GetSegmentRange(GPXSegments &segments, TrackItems &out, double start, double duration, int frameCount,
+                     double fps) {
     for (const auto &seg : segments) {
-        hasRange = false;
-        size_t nextItem = 0;
-        TrackItem item;
-        if (!seg->GetClosestItem(start, nextItem, item)) {
+        ssize_t lower = -1, upper = -1;
+
+        for (size_t i = 0; i < seg->size() - 1; ++i) {
+            const auto &ti0 = (*seg)[i];
+            const auto &ti1 = (*seg)[i + 1];
+            if (ti0.Timestamp <= start && start < ti1.Timestamp) {
+                lower = i;
+                break;
+            }
+        }
+
+        if (lower < 0) {
             continue;
         }
 
-        hasRange = true;
-        range.segment = seg;
-        range.startIndex = nextItem;
-        range.endIndex = seg->size() - 1;
-
-        if (!seg->GetClosestItem(start + duration, nextItem, item)) {
-            continue;
+        for (size_t i = seg->size() - 1; i >= 0; --i) {
+            const auto &ti0 = (*seg)[i];
+            if (ti0.Timestamp < start + duration) {
+                upper = i;
+                break;
+            }
         }
 
-        range.endIndex = nextItem;
-        return true;
+        assert(upper >= 0 && upper >= lower);
+
+        // Pad the beginning
+        auto delta = (*seg)[lower].Timestamp - start;
+        if (delta > 0) {
+            auto framesToPad = delta * fps;
+            while (framesToPad > 0 && frameCount > 0) {
+                TrackItem ti;
+                ti.Valid = false;
+                out.push_back(ti);
+                framesToPad--;
+                frameCount--;
+            }
+        }
+
+        // Take the frames lower..upper
+        for (auto ti = lower; ti <= upper && frameCount > 0; ++ti) {
+            out.push_back((*seg)[ti]);
+            frameCount--;
+        }
+
+        start += out.size() * fps;
+        duration -= out.size() * fps;
     }
 
-    if (hasRange) {
-        return true;
+    if (out.size() == 0) {
+        return false;
     }
 
-    return false;
+    // Pad the remainder
+    while (frameCount > 0) {
+        TrackItem ti;
+        ti.Valid = false;
+        out.push_back(ti);
+        --frameCount;
+    }
+
+    return true;
 }
 
 } // namespace gpsmap
