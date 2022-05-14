@@ -362,65 +362,6 @@ static bool MatchExternalGPXWithEmbeddedVideoTimestamps(const Arguments &args, t
     }
 }
 
-[[maybe_unused]] static void OneVideoPerSegmentParallel(task_set &tasks, thread_pool *tp, ResourceBundle &resources,
-                                                        GPXSegments &segments) {
-    auto cores = tp->size();
-
-    // Compute number of frames we have
-    auto frames = 0;
-    for (auto segment : segments) {
-        frames += segment->size();
-    }
-
-    // Try to keep all cores busy
-    size_t avg = frames / cores;
-
-    int i = 0;
-    for (auto segment : segments) {
-        auto segframes = segment->size();
-        auto startframe = 0l;
-        auto chunk = 0l;
-
-        std::vector<std::string> filesToCombine;
-
-        while (segframes > 0) {
-            auto framecount = avg >= segframes ? segframes : avg;
-
-            EncodingParams p;
-            p.fileSequenceId = i;
-            p.segmentSequenceId = chunk;
-            p.startFrame = startframe;
-            p.frameCount = framecount;
-            p.seg = segment;
-            filesToCombine.push_back(p.getFileName());
-            tasks.push(tp->push(EncodeOneSegment, resources, p));
-
-            startframe += framecount;
-            segframes -= framecount;
-            ++chunk;
-        }
-
-        boost::filesystem::path mergeListPath(resources.OutputDirectory);
-        std::stringstream ss;
-        ss << filesToCombine[0] << ".lst";
-        mergeListPath.append(ss.str());
-
-        std::ofstream ofs(mergeListPath.string());
-        if (ofs.fail()) {
-            std::cerr << "Could not open " << mergeListPath << "\n";
-            return;
-        }
-
-        for (auto fn : filesToCombine) {
-            ofs << "file '" << fn << "'\n";
-        }
-
-        ofs.close();
-
-        ++i;
-    }
-}
-
 static volatile bool s_terminated = false;
 static bool s_print_stats = true;
 
@@ -502,7 +443,6 @@ int main(int argc, char **argv) {
     task_set tasks(tp);
 
     // OneVideoPerSegment(tasks, tp, resourcesBundle, segments);
-    // OneVideoPerSegmentParallel(tasks, tp, resourcesBundle, segments);
     MatchExternalGPXWithEmbeddedVideoTimestamps(args, tasks, tp, resourcesBundle, segments);
 
     tasks.wait(true);
