@@ -33,12 +33,12 @@ namespace pt = boost::property_tree;
 
 // https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#C.2FC.2B.2B
 template <typename T> static T long2tilex(double lon, int z) {
-    return (T)(((lon + 180.0) / 360.0 * (double) (1 << z)));
+    return (T) (((lon + 180.0) / 360.0 * (double) (1 << z)));
 }
 
 template <typename T> static T lat2tiley(double lat, int z) {
     double latrad = lat * M_PI / 180.0;
-    return (T)(((1.0 - asinh(tan(latrad)) / M_PI) / 2.0 * (double) (1 << z)));
+    return (T) (((1.0 - asinh(tan(latrad)) / M_PI) / 2.0 * (double) (1 << z)));
 }
 
 static bool DownloadFile(const std::string &url, const std::string &filePath) {

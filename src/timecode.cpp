@@ -64,7 +64,7 @@ static bool GenerateTimeCodeFrame(VideoEncoder &encoder, OutputStream &os, Frame
     ImageBuf ib(ImageSpec(width, height, 4), pixels);
 
     auto fr = av_q2d(state.vi.FrameRate);
-    time_t ts = state.vi.Start + (time_t)((double) frameIndex / fr);
+    time_t ts = state.vi.Start + (time_t) ((double) frameIndex / fr);
     if (ts != state.timestamp) {
         state.label = time_to_str(ts);
         state.timestamp = ts;
