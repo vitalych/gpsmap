@@ -185,7 +185,6 @@ OutputStreamPtr VideoEncoder::AddStream(enum AVCodecID codec_id) {
             c->time_base = av_inv_q(m_fps);
             c->framerate = m_fps;
 
-            c->gop_size = 12; /* emit one intra frame every twelve frames at most */
             c->pix_fmt = STREAM_PIX_FMT;
             if (c->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
                 /* just for testing, we also add B-frames */
