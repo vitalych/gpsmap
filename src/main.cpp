@@ -207,20 +207,31 @@ static Markers GetMarkers(ResourceBundle &p) {
     return markers;
 }
 
+struct ZoomInfo {
+    int Level;
+    int Duration;
+    ZoomInfo(int level, int duration):Level(level), Duration(duration) {}
+};
+
+std::vector<ZoomInfo> GetZoomLevels() {
+    std::vector<ZoomInfo> ret;
+    ret.push_back(ZoomInfo(5, 5));
+    ret.push_back(ZoomInfo(7, 5));
+    ret.push_back(ZoomInfo(11, 5));
+    ret.push_back(ZoomInfo(16, 60));
+    return ret;
+}
+
 MapSwitcherPtr CreateMapSwitcher(GPXSegmentPtr wholeTrack, ResourceBundle &p, int duration) {
     ZoomedMaps zoomedMaps;
     auto markers = GetMarkers(p);
+    auto zoomLevels = GetZoomLevels();
 
     // Round robin zoom
-    MapImageGenerator::Params p1 = {wholeTrack, p.tiles, p.resources, 5, markers};
-    MapImageGenerator::Params p2 = {wholeTrack, p.tiles, p.resources, 7, markers};
-    MapImageGenerator::Params p3 = {wholeTrack, p.tiles, p.resources, 11, markers};
-    MapImageGenerator::Params p4 = {wholeTrack, p.tiles, p.resources, 16, markers};
-
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p1), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p2), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p3), 5));
-    zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p4), 60));
+    for (auto zoom : zoomLevels) {
+        MapImageGenerator::Params p1 = {wholeTrack, p.tiles, p.resources, zoom.Level, markers};
+        zoomedMaps.push_back(std::make_pair(MapImageGenerator::Create(p1), zoom.Duration));
+    }
 
     auto overrideCb = [&](int second, unsigned &index) {
         if (duration < 120) {
@@ -371,6 +382,52 @@ static void StatsPrinter() {
     std::cout << "Stats thread terminated\n";
 }
 
+bool LoadTiles(TileManager &mgr, const GPXSegments &segments) {
+    auto zoomLevels = GetZoomLevels();
+
+    for (const auto seg:segments) {
+        for (const auto &ti:*seg) {
+            for (const auto &zoom : zoomLevels) {
+
+                int x = 0, y = 0, px = 0, py = 0;
+                mgr.GetTileCoords(ti.Latitude, ti.Longitude, zoom.Level, x, y, px, py);
+
+                // Download all tiles around the center.
+                for (int tx = x - 1; tx <= x + 1; tx++) {
+                    for (int ty = y - 1; ty <= y + 1; ty++) {
+                        if (tx < 0 || ty < 0) {
+                            continue;
+                        }
+
+                        auto tile = mgr.GetTile(tx, ty, zoom.Level);
+                        if (tile) {
+                            continue;
+                        }
+
+                        bool success = false;
+                        for (int tries = 0; tries < 3; ++tries) {
+                            std::cout << "Loading tile x=" << tx << " y=" << ty << " z=" << zoom.Level << "\n";
+                            tile = mgr.DownloadTile(tx, ty, zoom.Level);
+                            if (!tile) {
+                                std::cerr << "Could not load tile";
+                                continue;
+                            }
+                            success = true;
+                            break;
+                        }
+
+                        if (!success) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 int main(int argc, char **argv) {
     Arguments args;
 
@@ -397,6 +454,11 @@ int main(int argc, char **argv) {
     auto fps = av_q2d(g_fps);
     if (!LoadSegments(args.InputGPXPaths, segments, fps, false)) {
         std::cerr << "Could not load segments\n";
+        return -1;
+    }
+
+    if (!LoadTiles(*tiles, segments)) {
+        std::cerr << "Could not load tiles\n";
         return -1;
     }
 

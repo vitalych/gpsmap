@@ -91,61 +91,32 @@ err:
 
 namespace gpsmap {
 
-Tile::Tile(const std::string &filePath, const TileDesc &desc) : m_filePath(filePath), m_desc(desc), m_state(LOADED) {
-    Load(filePath);
+Tile::Tile(const std::string &filePath, const TileDesc &desc) : m_filePath(filePath), m_desc(desc) {
+
 }
 
-Tile::Tile(const TileDesc &desc) : m_desc(desc), m_state(LOADING) {
-}
+bool Tile::Load() {
+    m_image = OIIO::ImageBuf(m_filePath);
 
-void Tile::Load(const std::string &filePath) {
-    {
-        std::lock_guard<std::mutex> lk(m_lock);
-        if (m_state != LOADING) {
-            return;
-        }
-
-        m_filePath = filePath;
-        m_image = OIIO::ImageBuf(m_filePath);
-
-        if (m_image.read()) {
-            int channelorder[] = {0, 1, 2, -1 /*use a float value*/};
-            float channelvalues[] = {0 /*ignore*/, 0 /*ignore*/, 0 /*ignore*/, 1.0};
-            std::string channelnames[] = {"", "", "", "A"};
-            m_image = OIIO::ImageBufAlgo::channels(m_image, 4, channelorder, channelvalues, channelnames);
-            m_state = LOADED;
-        } else {
-            std::cerr << "Could not load " << m_filePath << "\n";
-            m_state = FAILED;
-        }
+    if (!m_image.read()) {
+        std::cerr << "Could not load " << m_filePath << "\n";
+        return false;
     }
-    m_cv.notify_all();
+
+    int channelorder[] = {0, 1, 2, -1 /*use a float value*/};
+    float channelvalues[] = {0 /*ignore*/, 0 /*ignore*/, 0 /*ignore*/, 1.0};
+    std::string channelnames[] = {"", "", "", "A"};
+    m_image = OIIO::ImageBufAlgo::channels(m_image, 4, channelorder, channelvalues, channelnames);
+    return true;
 }
 
 TilePtr Tile::Create(const std::string &filePath, const TileDesc &desc) {
-    return TilePtr(new Tile(filePath, desc));
-}
-
-TilePtr Tile::Create(const TileDesc &desc) {
-    return TilePtr(new Tile(desc));
-}
-
-bool Tile::WaitUntilDownloaded() {
-    std::unique_lock<std::mutex> lk(m_lock);
-    if (m_state != LOADING) {
-        return m_state == LOADED;
+    auto ret = TilePtr(new Tile(filePath, desc));
+    if (!ret->Load()) {
+        return nullptr;
     }
 
-    m_cv.wait(lk, [&] { return m_state != LOADING; });
-    return m_state == LOADED;
-}
-
-void Tile::Fail() {
-    {
-        std::lock_guard<std::mutex> lk(m_lock);
-        m_state = FAILED;
-    }
-    m_cv.notify_all();
+    return ret;
 }
 
 TileManagerPtr TileManager::Create(const std::string &tilesRootPath, const std::string &mapDescPath) {
@@ -167,78 +138,58 @@ TileManagerPtr TileManager::Create(const std::string &tilesRootPath, const std::
     return TileManagerPtr(new TileManager(tilesRootPath, mapUrl));
 }
 
-bool TileManager::DownloadTile(TilePtr &tilep) const {
+TilePtr TileManager::DownloadTile(int x, int y, int zoom) {
     auto url = m_mapUrl;
-    auto tile = tilep->Desc();
-    boost::replace_all(url, "$x", std::to_string(tile.x));
-    boost::replace_all(url, "$y", std::to_string(tile.y));
-    boost::replace_all(url, "$z", std::to_string(tile.z));
+    boost::replace_all(url, "$x", std::to_string(x));
+    boost::replace_all(url, "$y", std::to_string(y));
+    boost::replace_all(url, "$z", std::to_string(zoom));
 
     std::stringstream fp;
-    fp << m_tilesRootPath << "/" << tile.z << "/" << tile.x;
+    fp << m_tilesRootPath << "/" << zoom << "/" << x;
 
     auto dir = fp.str();
     if (!boost::filesystem::is_directory(dir)) {
         if (!boost::filesystem::create_directories(dir)) {
             std::cerr << "Could not create directory " << dir << std::endl;
-            return false;
-        }
-    }
-
-    fp << "/" << tile.y << ".png";
-    auto filePath = fp.str();
-
-    if (boost::filesystem::exists(filePath)) {
-        if (boost::filesystem::file_size(filePath) > 0) {
-            tilep->Load(filePath);
-            return true;
-        } else {
-            boost::filesystem::remove(filePath);
-        }
-    }
-
-    if (!DownloadFile(url, filePath)) {
-        boost::filesystem::remove(filePath);
-        return false;
-    }
-
-    tilep->Load(fp.str());
-    return !tilep->Failed();
-}
-
-TilePtr TileManager::GetTile(int x, int y, int zoom) {
-    bool found = false;
-    TilePtr ret;
-    {
-        std::unique_lock<std::mutex> lock(m_lock);
-
-        auto d = TileDesc(x, y, zoom);
-        auto it = m_tiles.find(d);
-
-        if (it != m_tiles.end()) {
-            ret = it->second;
-            found = true;
-        } else {
-            ret = Tile::Create(d);
-            m_tiles[d] = ret;
-        }
-    }
-
-    if (found) {
-        ret->WaitUntilDownloaded();
-    } else {
-        if (!DownloadTile(ret)) {
-            std::cerr << "Could not download " << ret->FilePath() << "\n";
-            ret->Fail();
             return nullptr;
         }
     }
 
-    if (ret->Failed()) {
+    fp << "/" << y << ".png";
+    auto filePath = fp.str();
+
+    if (!boost::filesystem::exists(filePath)) {
+        if (!DownloadFile(url, filePath)) {
+            boost::filesystem::remove(filePath);
+            return nullptr;
+        }
+    }
+
+    auto ret = Tile::Create(filePath, TileDesc(x, y, zoom));
+    if (!ret) {
+        // File looks corrupted.
+        boost::filesystem::remove(filePath);
         return nullptr;
     }
 
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        m_tiles[ret->Desc()] = ret;
+    }
+
     return ret;
+}
+
+TilePtr TileManager::GetTile(int x, int y, int zoom) {
+    std::unique_lock<std::mutex> lock(m_lock);
+
+    auto d = TileDesc(x, y, zoom);
+    auto it = m_tiles.find(d);
+    if (it == m_tiles.end()) {
+        return nullptr;
+    }
+
+    return it->second;
 }
 
 void TileManager::GetTileCoords(double lat, double lon, int zoom, int &xt, int &yt, int &px, int &py) const {
