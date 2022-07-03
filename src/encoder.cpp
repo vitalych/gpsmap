@@ -430,7 +430,7 @@ void VideoEncoder::EncodeLoop() {
 }
 
 // TODO: use imagebuf for that
-void VideoEncoder::ClearFrame(OutputStream &os) {
+void VideoEncoder::ClearFrame(OutputStream &os, uint32_t color) {
     int width = Width();
     int height = Height();
 
@@ -440,7 +440,7 @@ void VideoEncoder::ClearFrame(OutputStream &os) {
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            pixels[y * ls + x] = rgba(0, 0, 0, 0xff);
+            pixels[y * ls + x] = color;
         }
     }
 }

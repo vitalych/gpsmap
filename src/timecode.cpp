@@ -55,7 +55,7 @@ static bool GenerateTimeCodeFrame(VideoEncoder &encoder, OutputStream &os, Frame
         return false;
     }
 
-    encoder.ClearFrame(os);
+    encoder.ClearFrame(os, rgba(0, 0, 0, 0xff));
 
     int width = encoder.Width();
     int height = encoder.Height();

@@ -102,7 +102,7 @@ public:
     void EncodeLoop();
     void Finalize();
 
-    void ClearFrame(OutputStream &os);
+    void ClearFrame(OutputStream &os, uint32_t color);
 
     int Height() const {
         return m_height;

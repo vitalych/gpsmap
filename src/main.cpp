@@ -144,7 +144,7 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams 
 
     ++g_processedFrames;
 
-    encoder.ClearFrame(os);
+    encoder.ClearFrame(os, rgba(0, 0, 0, 0xff));
 
     int width = encoder.Width();
     int height = encoder.Height();
@@ -154,7 +154,6 @@ bool GenerateFrame(VideoEncoder &encoder, OutputStream &os, EncodingFrameParams 
 
     const auto &frameDesc = state.params.frames[frameIndex];
     if (!frameDesc.Valid) {
-        encoder.ClearFrame(os);
         return true;
     }
 
