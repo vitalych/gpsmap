@@ -21,6 +21,9 @@
 cmake_minimum_required(VERSION 3.1)
 project(gps)
 
+find_library(OPENIMAGEIO_LIBRARIES "OpenImageIO")
+find_library(OPENIMAGEIO_UTIL_LIBRARIES "OpenImageIO_Util")
+
 include_directories("include")
 
 add_subdirectory(src)

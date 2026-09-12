@@ -56,7 +56,7 @@ add_executable(
 TARGET_LINK_LIBRARIES(gpstool gpsmap)
 TARGET_LINK_LIBRARIES(gpstimecode gpsmap)
 
-SET(LIBS avcodec avutil avformat swscale swresample OpenImageIO boost_system boost_filesystem curl m pthread)
+SET(LIBS avcodec avutil avformat swscale swresample ${OPENIMAGEIO_LIBRARIES} ${OPENIMAGEIO_UTIL_LIBRARIES} boost_system boost_filesystem curl m pthread)
 
 target_link_libraries(gps ${LIBS})
 target_link_libraries(gpstool ${LIBS})
