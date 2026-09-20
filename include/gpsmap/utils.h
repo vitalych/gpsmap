@@ -29,7 +29,11 @@ extern "C" {
 #include <libavutil/rational.h>
 }
 
+#include <OpenImageIO/imagebuf.h>
+
 namespace gpsmap {
+
+OIIO::ImageBuf Resize(const OIIO::ImageBuf in, int nw, int nh);
 
 struct VideoInfo {
     std::string Path;

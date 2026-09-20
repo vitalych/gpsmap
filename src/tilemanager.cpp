@@ -28,6 +28,7 @@
 #include <mutex>
 
 #include <gpsmap/tilemanager.h>
+#include <gpsmap/utils.h>
 
 namespace pt = boost::property_tree;
 
@@ -69,6 +70,7 @@ static bool DownloadFile(const std::string &url, const std::string &filePath) {
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "gps/1.0");
 
     res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
@@ -107,6 +109,7 @@ bool Tile::Load() {
     float channelvalues[] = {0 /*ignore*/, 0 /*ignore*/, 0 /*ignore*/, 1.0};
     std::string channelnames[] = {"", "", "", "A"};
     m_image = OIIO::ImageBufAlgo::channels(m_image, 4, channelorder, channelvalues, channelnames);
+
     return true;
 }
 
@@ -168,6 +171,12 @@ TilePtr TileManager::DownloadTile(int x, int y, int zoom) {
     auto ret = Tile::Create(filePath, TileDesc(x, y, zoom));
     if (!ret) {
         // File looks corrupted.
+        boost::filesystem::remove(filePath);
+        return nullptr;
+    }
+
+    if (ret->width() != m_tileWidth || ret->height() != m_tileHeight) {
+        std::cerr << "Incorrect width/height: " << ret->width() << "x" << ret->height() << "\n";
         boost::filesystem::remove(filePath);
         return nullptr;
     }

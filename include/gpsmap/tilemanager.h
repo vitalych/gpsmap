@@ -93,6 +93,14 @@ public:
     const std::string &FilePath() const {
         return m_filePath;
     }
+
+    int width() const {
+        return m_image.spec().width;
+    }
+
+    int height() const {
+        return m_image.spec().height;
+    }
 };
 
 using Tiles = std::unordered_map<TileDesc, TilePtr>;

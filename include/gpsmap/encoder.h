@@ -41,7 +41,7 @@ struct AVFrame;
 namespace gpsmap {
 
 struct OutputStream {
-    AVCodec *codec = nullptr;
+    const AVCodec *codec = nullptr;
     AVStream *st = nullptr;
     AVCodecContext *enc = nullptr;
 
@@ -78,7 +78,7 @@ private:
     int m_height;
     AVRational m_fps;
 
-    AVOutputFormat *m_fmt;
+    const AVOutputFormat *m_fmt;
     AVFormatContext *m_oc;
     AVDictionary *m_opt;
 

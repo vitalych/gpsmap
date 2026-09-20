@@ -102,6 +102,12 @@ static double bearing(const TrackItem &i1, const TrackItem &i2) {
     return bearing(i1.Latitude, i1.Longitude, i2.Latitude, i2.Longitude);
 }
 
+static bool same_point(const TrackItem &i1, const TrackItem &i2) {
+    auto latd = fabs(i1.Latitude - i2.Latitude);
+    auto lond = fabs(i1.Longitude - i2.Longitude);
+    return latd < 0.000001 && lond < 0.000001;
+}
+
 static double angle_distance(double a1, double a2) {
     double result;
     auto phi = fmod(abs(a2 - a1), 360);
@@ -124,7 +130,7 @@ void GPXSegment::UpdateBearing() {
 
     for (size_t i = 0; i < m_items.size() - 1; ++i) {
         auto b = bearing(m_items[i], m_items[i + 1]);
-        if (b == 0) {
+        if (b == 0 || same_point(m_items[i], m_items[i + 1])) {
             if (i > 1) {
                 m_items[i].Bearing = m_items[i - 1].Bearing;
             }

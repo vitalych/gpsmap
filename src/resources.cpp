@@ -24,6 +24,8 @@
 
 #include <gpsmap/resources.h>
 
+#include <gpsmap/utils.h>
+
 OIIO_NAMESPACE_USING
 
 static bool LoadFromFile(const boost::filesystem::path &dir, const std::string &fileName, OIIO::ImageBuf &img) {
@@ -35,18 +37,6 @@ static bool LoadFromFile(const boost::filesystem::path &dir, const std::string &
 
     img = OIIO::ImageBuf(filePath.string());
     return true;
-}
-
-static OIIO::ImageBuf Resize(const OIIO::ImageBuf in, int nw, int nh) {
-    auto w = in.spec().width;
-    auto h = in.spec().height;
-
-    if (w != nw || h != nh) {
-        OIIO::ROI roi(0, nw, 0, nh, 0, 1, /*chans:*/ 0, in.nchannels());
-        return OIIO::ImageBufAlgo::resize(in, "", 0, roi, 1);
-    } else {
-        return in;
-    }
 }
 
 namespace gpsmap {

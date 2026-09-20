@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <iomanip>
 #include <gpsmap/map.h>
 
 OIIO_NAMESPACE_USING
@@ -151,6 +152,7 @@ bool MapImageGenerator::DrawArrow(ImageBuf &ib, double bearing) {
 
 void MapImageGenerator::DrawMarkers(ImageBuf &ib, double bearing) {
     if (m_zoom >= 11) {
+        // DrawDot(ib);
         DrawArrow(ib, bearing);
     } else {
         DrawDot(ib);

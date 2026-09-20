@@ -32,6 +32,10 @@
 #include <gpsmap/gpx.h>
 #include <gpsmap/utils.h>
 
+#include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/imagebufalgo.h>
+#include <OpenImageIO/imageio.h>
+
 namespace fs = std::filesystem;
 
 static bool operator!=(const AVRational &a, const AVRational &b) {
@@ -39,6 +43,18 @@ static bool operator!=(const AVRational &a, const AVRational &b) {
 }
 
 namespace gpsmap {
+
+OIIO::ImageBuf Resize(const OIIO::ImageBuf in, int nw, int nh) {
+    auto w = in.spec().width;
+    auto h = in.spec().height;
+
+    if (w != nw || h != nh) {
+        OIIO::ROI roi(0, nw, 0, nh, 0, 1, /*chans:*/ 0, in.nchannels());
+        return OIIO::ImageBufAlgo::resize(in, "", 0, roi, 1);
+    } else {
+        return in;
+    }
+}
 
 std::string exec(const char *cmd) {
     std::array<char, 128> buffer;
@@ -257,7 +273,19 @@ bool LoadSegments(const std::vector<std::string> &inputGPXPaths, GPXSegments &se
 
 bool GetSegmentRange(GPXSegments &segments, TrackItems &out, double start, double duration, int frameCount,
                      double fps) {
+    if (duration == 0.0) {
+        return false;
+    }
+
     for (const auto &seg : segments) {
+        if (frameCount <= 0 || duration <= 0) {
+            break;
+        }
+
+        assert(duration > 0.0);
+        assert(start > 0.0);
+        assert(frameCount > 0);
+
         ssize_t lower = -1, upper = -1;
 
         for (size_t i = 0; i < seg->size() - 1; ++i) {
@@ -283,6 +311,8 @@ bool GetSegmentRange(GPXSegments &segments, TrackItems &out, double start, doubl
 
         assert(upper >= 0 && upper >= lower);
 
+        auto startFrames = out.size();
+
         // Pad the beginning
         auto delta = (*seg)[lower].Timestamp - start;
         if (delta > 0) {
@@ -302,8 +332,10 @@ bool GetSegmentRange(GPXSegments &segments, TrackItems &out, double start, doubl
             frameCount--;
         }
 
-        start += out.size() * fps;
-        duration -= out.size() * fps;
+        auto addedFrames = out.size() - startFrames;
+
+        start += addedFrames / fps;
+        duration -= addedFrames / fps;
     }
 
     if (out.size() == 0) {

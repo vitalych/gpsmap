@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <vector>
 
@@ -383,6 +384,8 @@ static void StatsPrinter() {
 }
 
 bool LoadTiles(TileManager &mgr, const GPXSegments &segments) {
+    std::vector<std::string> errors;
+
     auto zoomLevels = GetZoomLevels();
 
     for (const auto seg:segments) {
@@ -404,20 +407,19 @@ bool LoadTiles(TileManager &mgr, const GPXSegments &segments) {
                             continue;
                         }
 
-                        bool success = false;
                         for (int tries = 0; tries < 3; ++tries) {
                             std::cout << "Loading tile x=" << tx << " y=" << ty << " z=" << zoom.Level << "\n";
                             tile = mgr.DownloadTile(tx, ty, zoom.Level);
-                            if (!tile) {
-                                std::cerr << "Could not load tile";
-                                continue;
+                            if (tile) {
+                                break;
                             }
-                            success = true;
-                            break;
-                        }
 
-                        if (!success) {
-                            return false;
+                            std::stringstream ss;
+                            ss << "Could not load tile x=" << tx << " y=" << ty << " z=" << zoom.Level;
+                            errors.push_back(ss.str());
+
+                            std::cerr << ss.str() << "\n";
+                            sleep(1);
                         }
                     }
                 }
@@ -425,7 +427,11 @@ bool LoadTiles(TileManager &mgr, const GPXSegments &segments) {
         }
     }
 
-    return true;
+    for (const auto &str: errors) {
+        std::cout << str << "\n";
+    }
+
+    return errors.empty();
 }
 
 int main(int argc, char **argv) {

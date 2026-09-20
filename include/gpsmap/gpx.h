@@ -23,6 +23,7 @@
 #define GPX_H
 
 #include <assert.h>
+#include <iostream>
 #include <math.h>
 #include <memory>
 #include <ostream>
@@ -90,9 +91,14 @@ public:
         return GPXSegmentPtr(new GPXSegment(initialDistance, frequency));
     }
 
-    void AddItem(const TrackItem &item) {
-        assert(!m_items.size() || (m_items.back().Timestamp <= item.Timestamp));
-        m_items.push_back(item);
+    bool AddItem(const TrackItem &item) {
+        if (!m_items.size() || (m_items.back().Timestamp <= item.Timestamp)) {
+            m_items.push_back(item);
+            return true;
+        } else {
+            std::cerr << "New item has older timestamp than previous item\n";
+            return false;
+        }
     }
 
     void UpdateDistances();
