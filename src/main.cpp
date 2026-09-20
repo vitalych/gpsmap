@@ -211,7 +211,8 @@ static Markers GetMarkers(ResourceBundle &p) {
 struct ZoomInfo {
     int Level;
     int Duration;
-    ZoomInfo(int level, int duration):Level(level), Duration(duration) {}
+    ZoomInfo(int level, int duration) : Level(level), Duration(duration) {
+    }
 };
 
 std::vector<ZoomInfo> GetZoomLevels() {
@@ -388,8 +389,8 @@ bool LoadTiles(TileManager &mgr, const GPXSegments &segments) {
 
     auto zoomLevels = GetZoomLevels();
 
-    for (const auto seg:segments) {
-        for (const auto &ti:*seg) {
+    for (const auto seg : segments) {
+        for (const auto &ti : *seg) {
             for (const auto &zoom : zoomLevels) {
 
                 int x = 0, y = 0, px = 0, py = 0;
@@ -427,7 +428,7 @@ bool LoadTiles(TileManager &mgr, const GPXSegments &segments) {
         }
     }
 
-    for (const auto &str: errors) {
+    for (const auto &str : errors) {
         std::cout << str << "\n";
     }
 

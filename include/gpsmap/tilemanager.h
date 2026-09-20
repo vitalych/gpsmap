@@ -79,6 +79,7 @@ private:
     Tile(const std::string &filePath, const TileDesc &desc);
 
     bool Load();
+
 public:
     OIIO::ImageBuf &GetImage() {
         return m_image;

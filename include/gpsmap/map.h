@@ -113,7 +113,7 @@ private:
     OIIO::ImageBuf m_buf1, m_buf2;
 
     LabelGenerator(const std::string &fontPath)
-        : m_fontPath(fontPath), m_buf1(OIIO::ImageSpec(512, 32, 4)), m_buf2(OIIO::ImageSpec(512, 32, 4)){};
+        : m_fontPath(fontPath), m_buf1(OIIO::ImageSpec(512, 32, 4)), m_buf2(OIIO::ImageSpec(512, 32, 4)) {};
 
 public:
     static LabelGeneratorPtr Create(const std::string &fontPath) {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2017 Dependable Systems Laboratory, EPFL
+# Copyright (c) 2026 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,10 @@
 #
 # Automatically run clang-format on the source code
 #
-# You must specify the path to the clang-format binary in the CLANG_FORMAT
-# variable. This script must be run from the root directory of the S2E code
-# repository
-#
 
 set -e
+
+CLANG_FORMAT=${CLANG_FORMAT:-clang-format-19}
 
 if [ -z "${CLANG_FORMAT}" ]; then
     echo "Usage: CLANG_FORMAT=/path/to/clang-format ${0}"
@@ -37,10 +35,11 @@ if [ -z "${CLANG_FORMAT}" ]; then
     exit 1
 fi
 
-FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx"
+FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx .c.inc"
+SOURCE_DIRS="."
 
 for EXT in ${FILE_EXTS}; do
     echo "Applying clang-format to ${EXT} files..."
-    find -type f -name "*${EXT}"                    \
+    find ${SOURCE_DIRS} -type f -name "*${EXT}"     \
         -exec ${CLANG_FORMAT} -i -style=file {} +
 done

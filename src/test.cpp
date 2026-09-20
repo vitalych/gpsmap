@@ -30,7 +30,7 @@ TEST(ComputeMapSegmentsForGpxVideos, T1) {
     std::vector<GPXInfo> gpxInfo;
     std::vector<VideoInfo> segmentInfo;
 
-    auto fr = (AVRational){60, 1};
+    auto fr = (AVRational) {60, 1};
 
     videoInfo.push_back({.FileId = 0, .FileSequence = 0, .FrameRate = fr, .FrameCount = 60 * 100});
     gpxInfo.push_back({.Start = 123, .Duration = 100.0});

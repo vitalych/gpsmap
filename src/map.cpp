@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <iomanip>
 #include <gpsmap/map.h>
+#include <iomanip>
 
 OIIO_NAMESPACE_USING
 
